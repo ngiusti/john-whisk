@@ -66,6 +66,43 @@ def generate_recipe(dish: str):
     return _parse_recipe(dish, text)
 
 
+def ask_grounded(text: str, pantry: str) -> str:
+    """Like ask(), but injects the user's ACTUAL pantry into the system prompt so
+    inventory-adjacent questions are answered from real data instead of invented
+    items. Grounding beats prohibition: a 3B model told 'you don't know the
+    pantry' still fabricates; given the real list, it answers truthfully."""
+    if not text or not text.strip():
+        return ""
+    if pantry:
+        stock_line = (
+            f"For reference, the user's kitchen contains EXACTLY these items and nothing "
+            f"else (plus basic salt, pepper, and water): {pantry}. "
+        )
+    else:
+        stock_line = (
+            "For reference, the user has logged no pantry items, so treat their kitchen "
+            "as empty apart from basic salt, pepper, and water. "
+        )
+    system = (
+        config.SYSTEM_PROMPT + " " + stock_line +
+        "If they ask what they have or about a specific item, answer ONLY from that list "
+        "and never invent, guess, or assume items they own."
+    )
+    payload = {
+        "model": config.OLLAMA_MODEL,
+        "prompt": text,
+        "system": system,
+        "stream": False,
+        "options": {"num_ctx": config.NUM_CTX, "num_predict": config.NUM_PREDICT},
+    }
+    try:
+        r = requests.post(config.OLLAMA_URL, json=payload, timeout=config.OLLAMA_TIMEOUT)
+        r.raise_for_status()
+        return r.json().get("response", "").strip()
+    except (requests.RequestException, ValueError):
+        return ""
+
+
 def suggest_recipe(pantry: str, request: str) -> str:
     """Suggest recipes constrained to the pantry. The strict SUGGEST_PROMPT is
     the authoritative rule: only the listed items are on hand, and the model may
