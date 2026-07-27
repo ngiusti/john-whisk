@@ -73,10 +73,13 @@ def _open_mic_stream(frame_bytes: int):
     return None, b""
 
 
-def record_until_silence(out_path: str = None):
+def record_until_silence(out_path: str = None, start_timeout_ms: int = None):
     """Record from the mic until ~SILENCE_MS of trailing silence after speech.
     Returns out_path if speech was captured, else None.
-    Streams raw PCM from arecord and gates with webrtcvad (30ms frames)."""
+    Streams raw PCM from arecord and gates with webrtcvad (30ms frames).
+    If start_timeout_ms is set and no speech has BEGUN within that window, give
+    up early and return None (used for hands-free listening between recipe
+    steps, so a silent pause doesn't hold the mic for the full utterance cap)."""
     out_path = out_path or config.IN_WAV
     vad = webrtcvad.Vad(config.VAD_AGGRESSIVENESS)
     frame_ms = 30
@@ -84,6 +87,7 @@ def record_until_silence(out_path: str = None):
     max_frames = config.MAX_UTTERANCE_MS // frame_ms
     silence_frames_needed = config.SILENCE_MS // frame_ms
     min_speech_frames = config.MIN_SPEECH_MS // frame_ms
+    start_timeout_frames = (start_timeout_ms // frame_ms) if start_timeout_ms else None
 
     proc, primed = _open_mic_stream(frame_bytes)
     if proc is None:
@@ -116,6 +120,9 @@ def record_until_silence(out_path: str = None):
                 stop = True
                 break
         while not stop and total < max_frames:
+            # hands-free: bail if no one has started speaking within the window
+            if start_timeout_frames is not None and not started and total >= start_timeout_frames:
+                break
             frame = proc.stdout.read(frame_bytes)
             if len(frame) < frame_bytes:
                 break

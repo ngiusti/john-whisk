@@ -40,6 +40,8 @@ VAD_AGGRESSIVENESS = 2     # 0-3, higher = more aggressive filtering
 SILENCE_MS = 5000          # stop after this much trailing silence (tolerates long pauses)
 MAX_UTTERANCE_MS = 25000   # hard cap on one utterance (raised to fit long pause-filled speech)
 MIN_SPEECH_MS = 300        # ignore blips shorter than this
+COOK_LISTEN_MS = 8000      # hands-free: listen this long for a command between recipe
+                           # steps before falling back to the wake word (recipe kept)
 
 # --- Paths ---
 IN_WAV = "/tmp/john_whisk_in.wav"
