@@ -4,7 +4,7 @@ from john_whisk import config, db
 def test_add_and_get(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", str(tmp_path / "t.db"))
     db.add_items([{"name": "eggs", "quantity": 2, "unit": None}])
-    assert db.get_inventory() == [{"name": "eggs", "quantity": 2.0, "unit": None}]
+    assert db.get_inventory() == [{"name": "eggs", "quantity": 2.0, "unit": None, "category": None}]
 
 
 def test_merge_sums_numeric_quantities(tmp_path, monkeypatch):

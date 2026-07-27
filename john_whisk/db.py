@@ -16,8 +16,13 @@ def init_db():
                    name     TEXT NOT NULL,
                    quantity REAL,
                    unit     TEXT,
-                   added_at TEXT NOT NULL)"""
+                   added_at TEXT NOT NULL,
+                   category TEXT)"""
         )
+        # migrate a DB created before the category column existed
+        cols = [r[1] for r in c.execute("PRAGMA table_info(inventory)").fetchall()]
+        if "category" not in cols:
+            c.execute("ALTER TABLE inventory ADD COLUMN category TEXT")
         c.commit()
 
 
@@ -30,6 +35,7 @@ def add_items(items):
             name = it["name"]
             qty = it.get("quantity")
             unit = it.get("unit")
+            category = it.get("category")
             row = c.execute(
                 "SELECT id, quantity FROM inventory WHERE name = ?", (name,)
             ).fetchone()
@@ -37,13 +43,15 @@ def add_items(items):
                 existing = row[1]
                 merged = None if (qty is None or existing is None) else existing + qty
                 c.execute(
-                    "UPDATE inventory SET quantity = ?, unit = COALESCE(?, unit), added_at = ? WHERE id = ?",
-                    (merged, unit, now, row[0]),
+                    "UPDATE inventory SET quantity = ?, unit = COALESCE(?, unit), "
+                    "category = COALESCE(?, category), added_at = ? WHERE id = ?",
+                    (merged, unit, category, now, row[0]),
                 )
             else:
                 c.execute(
-                    "INSERT INTO inventory (name, quantity, unit, added_at) VALUES (?, ?, ?, ?)",
-                    (name, qty, unit, now),
+                    "INSERT INTO inventory (name, quantity, unit, added_at, category) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (name, qty, unit, now, category),
                 )
         c.commit()
 
@@ -81,25 +89,39 @@ def remove_items(names):
     return removed
 
 
-def find_items(names):
-    """For each queried name, return (queried, stored_name or None), matching
-    with the same singular/plural tolerance as removal. Lets callers answer
-    "do we have X" straight from the DB — no LLM, so no invented inventory."""
+def _plural_eq(a, b):
+    """True if a and b are the same word ignoring a trailing-s plural, so a
+    spoken "sauces" matches the category "sauce" and "eggs" matches "egg"."""
+    a, b = a.strip().lower(), b.strip().lower()
+    return a == b or a == b + "s" or b == a + "s" or _singular(a) == _singular(b)
+
+
+def match_query(term):
+    """Return the stored names of items whose NAME or CATEGORY matches `term`
+    (plural-tolerant). Answers "do we have X" straight from the DB — no LLM —
+    and makes category queries ("sauces", "pasta") list the tagged items."""
     init_db()
     with contextlib.closing(_conn()) as c:
-        stored = [r[0] for r in c.execute("SELECT name FROM inventory").fetchall()]
+        rows = c.execute("SELECT name, category FROM inventory").fetchall()
     out = []
-    for q in names:
-        target = _singular(q)
-        match = next((s for s in stored if _singular(s) == target), None)
-        out.append((q, match))
+    for name, category in rows:
+        if _plural_eq(name, term) or (category and _plural_eq(category, term)):
+            out.append(name)
     return out
+
+
+def set_category(name, category):
+    """Set an item's category (used by the one-time backfill of pre-tag items)."""
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        c.execute("UPDATE inventory SET category = ? WHERE name = ?", (category, name))
+        c.commit()
 
 
 def get_inventory():
     init_db()
     with contextlib.closing(_conn()) as c:
         rows = c.execute(
-            "SELECT name, quantity, unit FROM inventory ORDER BY name"
+            "SELECT name, quantity, unit, category FROM inventory ORDER BY name"
         ).fetchall()
-    return [{"name": r[0], "quantity": r[1], "unit": r[2]} for r in rows]
+    return [{"name": r[0], "quantity": r[1], "unit": r[2], "category": r[3]} for r in rows]

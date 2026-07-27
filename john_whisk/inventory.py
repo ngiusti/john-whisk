@@ -41,33 +41,26 @@ def parse_removed_names(text: str) -> list:
     return names
 
 
-# Lead-ins before the queried item in a "do we have X?" question.
-_QUERY_LEADINS = [
-    "do we still have any", "do we still have", "do i still have any",
-    "do i still have", "do we have any", "do we have", "do i have any",
-    "do i have", "do you have any", "do you have", "have we got any",
-    "have we got", "have i got any", "have i got", "is there any",
-    "are there any", "is there", "are there", "got any",
-]
-_QUERY_FILLERS = {"the", "some", "a", "an", "my", "our", "more", "left", "in",
-                  "stock", "pantry", "fridge", "any", "still"}
+# Question scaffolding to strip from ANYWHERE in a pantry query, so the item or
+# category term is found whether it's mid-sentence ("what kind of PASTA do I
+# have") or trailing ("do we have any SAUCES"). "and" is kept as a separator.
+_QUERY_SCAFFOLD = {
+    "what", "kind", "sort", "of", "do", "does", "did", "i", "we", "you",
+    "have", "has", "had", "got", "get", "is", "there", "are", "any", "some",
+    "the", "a", "an", "my", "our", "more", "left", "still", "in", "stock",
+    "pantry", "fridge", "kitchen",
+}
 
 
 def parse_queried_names(text: str) -> list:
-    """Pull the queried item name(s) out of a "do we have X?" question,
-    deterministically (no LLM). Returns lowercase names, possibly multiword."""
+    """Pull the queried item/category term(s) out of a pantry question,
+    deterministically (no LLM), by removing question scaffolding. Returns
+    lowercase terms, possibly multiword, split on "and"."""
     t = re.sub(r"[^a-z0-9\s]", " ", text.lower())
-    t = re.sub(r"\s+", " ", t).strip()
-    best_end = -1
-    for lead in _QUERY_LEADINS:
-        idx = t.find(lead)
-        if idx != -1 and idx + len(lead) > best_end:
-            best_end = idx + len(lead)
-    tail = t[best_end:].strip() if best_end != -1 else t
+    kept = [w for w in t.split() if w == "and" or w not in _QUERY_SCAFFOLD]
     names = []
-    for chunk in tail.split(" and "):
-        words = [w for w in chunk.split() if w not in _QUERY_FILLERS]
-        name = " ".join(words).strip()
+    for chunk in " ".join(kept).split(" and "):
+        name = chunk.strip()
         if name:
             names.append(name)
     return names
@@ -109,13 +102,22 @@ def list_stock() -> str:
 
 def check(text: str) -> str:
     """Answer "do we have X?" straight from the DB, never from the model — so it
-    cannot invent inventory. Falls back to a full list if no item was parsed."""
-    names = parse_queried_names(text)
-    if not names:
+    cannot invent inventory. Each term matches by item NAME or CATEGORY, so
+    "sauces" / "what kind of pasta" list the tagged items. Falls back to a full
+    list if nothing was parsed."""
+    terms = parse_queried_names(text)
+    if not terms:
         return list_stock()
-    found = db.find_items(names)
-    have = [m for _, m in found if m]
-    missing = [q for q, m in found if not m]
+    have = []
+    missing = []
+    for term in terms:
+        matches = db.match_query(term)
+        if matches:
+            for name in matches:
+                if name not in have:          # de-dupe (name + its category can both hit)
+                    have.append(name)
+        else:
+            missing.append(term)
     if have and not missing:
         return "Yes, you have " + _join(have) + "."
     if missing and not have:
