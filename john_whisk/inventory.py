@@ -27,6 +27,14 @@ def add_from_text(text: str) -> str:
     return "Added " + _join([_format_item(i) for i in items]) + "."
 
 
+def list_stock() -> str:
+    """Read the pantry back to the user straight from the DB (no LLM)."""
+    stock = db.get_inventory()
+    if not stock:
+        return "Your pantry's empty. Tell me what you bought first."
+    return "You have " + _join([_format_item(i) for i in stock]) + "."
+
+
 def suggest(text: str) -> str:
     stock = db.get_inventory()
     if not stock:

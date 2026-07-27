@@ -8,6 +8,7 @@ HOME = os.path.expanduser("~")
 #   arecord -L / aplay -L  ->  plughw:CARD=<id>,DEV=0     ( ids from /proc/asound/cards )
 MIC_DEVICE = "plughw:CARD=Device,DEV=0"          # USB PnP Sound Device (C-Media) — mic
 SPEAKER_DEVICE = "plughw:CARD=UACDemoV10,DEV=0"   # UACDemoV1.0 (Jieli) — speaker
+SPEAKER_CARD = "UACDemoV10"                        # `amixer -c <card>` for volume control
 SAMPLE_RATE = 16000             # whisper + openwakeword both want 16 kHz mono
 
 # --- Whisper (speech-to-text) ---
@@ -35,8 +36,8 @@ WAKE_INFERENCE_FRAMEWORK = "onnx"   # or "tflite" if onnxruntime unavailable
 
 # --- Voice activity detection (end-of-speech) ---
 VAD_AGGRESSIVENESS = 2     # 0-3, higher = more aggressive filtering
-SILENCE_MS = 800           # stop after this much trailing silence
-MAX_UTTERANCE_MS = 12000   # hard cap on one utterance
+SILENCE_MS = 5000          # stop after this much trailing silence (tolerates long pauses)
+MAX_UTTERANCE_MS = 25000   # hard cap on one utterance (raised to fit long pause-filled speech)
 MIN_SPEECH_MS = 300        # ignore blips shorter than this
 
 # --- Paths ---
@@ -56,9 +57,16 @@ SYSTEM_PROMPT = (
 DB_PATH = os.path.join(HOME, "john-whisk/john_whisk.db")
 
 EXTRACT_PROMPT = (
-    "The user just told you which groceries they bought. Extract each food item and its "
-    "quantity. Respond with ONLY JSON of the form "
+    "The user just told you which groceries they bought. Extract each food item they "
+    "mention. Respond with ONLY JSON of the form "
     '{"items": [{"name": <singular lowercase string>, "quantity": <number or null>, '
-    '"unit": <string or null>}]}. Use null quantity for vague amounts like "some" or "a bit". '
-    "Convert number words to digits (a dozen = 12, a couple = 2, a few = 3, half a dozen = 6)."
+    '"unit": <string or null>}]}. '
+    "Set quantity to null UNLESS the user explicitly says a number for that item. "
+    "Never invent, guess, or default a quantity. "
+    'Examples: "chicken and eggs" -> both quantity null; "a dozen eggs" -> eggs quantity 12; '
+    '"2 bacon" -> bacon quantity 2; "some spinach" -> spinach quantity null. '
+    "Convert number words to digits (a dozen = 12, a couple = 2, a few = 3, half a dozen = 6). "
+    "Only extract items the user explicitly says they bought or have. If the text is a "
+    'question, a request, or does not clearly list groceries, return {"items": []}. '
+    "Never invent items that were not mentioned."
 )

@@ -31,3 +31,16 @@ def test_suggest_with_stock_calls_llm(tmp_path, monkeypatch):
     monkeypatch.setattr(llm, "ask", lambda prompt: "You could make an omelette.")
     reply = inventory.suggest("what can I make?")
     assert reply == "You could make an omelette."
+
+
+def test_list_stock_reads_db(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "DB_PATH", str(tmp_path / "t.db"))
+    db.add_items([{"name": "eggs", "quantity": 12, "unit": None},
+                  {"name": "spinach", "quantity": None, "unit": None}])
+    msg = inventory.list_stock()
+    assert "eggs" in msg and "spinach" in msg
+
+
+def test_list_stock_empty(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "DB_PATH", str(tmp_path / "t.db"))
+    assert "empty" in inventory.list_stock().lower()

@@ -46,23 +46,31 @@ def _write_wav(path, pcm_bytes):
 def _open_mic_stream(frame_bytes: int):
     """Open arecord and confirm it is STABLY streaming. Retries if the ALSA
     device is momentarily busy or resets right after opening (release lag from
-    the wake listener). Returns a live Popen (priming frames consumed) or None."""
-    time.sleep(0.3)                         # let the previous mic user's ALSA release settle
-    for _ in range(20):                     # up to ~5s of retries
+    the wake listener). Returns (live Popen, primed_bytes) or (None, b"").
+    The primed frames are KEPT (returned) so the start of speech isn't clipped."""
+    time.sleep(0.15)                        # brief settle (the wake arecord already closed during the chime)
+    for _ in range(20):                     # up to ~4s of retries
         proc = subprocess.Popen(
             ["arecord", "-D", config.MIC_DEVICE, "-f", "S16_LE",
              "-r", str(config.SAMPLE_RATE), "-c", "1", "-t", "raw", "-q"],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
         )
-        # require several consecutive full frames — one isn't enough to prove
-        # the stream survived the device reset.
-        stable = all(len(proc.stdout.read(frame_bytes)) == frame_bytes for _ in range(5))
+        # read a few frames to prove the stream survived the device reset,
+        # but keep them (don't discard) so no audio is lost.
+        primed = bytearray()
+        stable = True
+        for _ in range(4):
+            f = proc.stdout.read(frame_bytes)
+            if len(f) != frame_bytes:
+                stable = False
+                break
+            primed += f
         if stable:
-            return proc
+            return proc, bytes(primed)
         proc.terminate()
         proc.wait()
         time.sleep(0.2)
-    return None
+    return None, b""
 
 
 def record_until_silence(out_path: str = None):
@@ -77,7 +85,7 @@ def record_until_silence(out_path: str = None):
     silence_frames_needed = config.SILENCE_MS // frame_ms
     min_speech_frames = config.MIN_SPEECH_MS // frame_ms
 
-    proc = _open_mic_stream(frame_bytes)
+    proc, primed = _open_mic_stream(frame_bytes)
     if proc is None:
         return None                          # mic never became available
     collected = bytearray()
@@ -85,23 +93,35 @@ def record_until_silence(out_path: str = None):
     trailing_silence = 0
     started = False
     total = 0
+
+    def _handle(frame):
+        """Run one 30ms frame through VAD. Returns True when the utterance is done."""
+        nonlocal voiced_frames, trailing_silence, started
+        if vad.is_speech(frame, config.SAMPLE_RATE):
+            started = True
+            voiced_frames += 1
+            trailing_silence = 0
+            collected.extend(frame)
+        elif started:
+            trailing_silence += 1
+            collected.extend(frame)
+        return started and trailing_silence >= silence_frames_needed
+
     try:
-        while total < max_frames:
+        stop = False
+        # process the kept priming frames first, then the live stream
+        for i in range(0, len(primed) - frame_bytes + 1, frame_bytes):
+            total += 1
+            if _handle(primed[i:i + frame_bytes]):
+                stop = True
+                break
+        while not stop and total < max_frames:
             frame = proc.stdout.read(frame_bytes)
             if len(frame) < frame_bytes:
                 break
             total += 1
-            is_speech = vad.is_speech(frame, config.SAMPLE_RATE)
-            if is_speech:
-                started = True
-                voiced_frames += 1
-                trailing_silence = 0
-                collected.extend(frame)
-            elif started:
-                trailing_silence += 1
-                collected.extend(frame)
-                if trailing_silence >= silence_frames_needed:
-                    break
+            if _handle(frame):
+                break
     finally:
         proc.terminate()
         proc.wait()

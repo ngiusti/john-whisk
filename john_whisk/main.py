@@ -1,5 +1,5 @@
 import logging
-from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db
+from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
@@ -17,6 +17,7 @@ def handle_turn(listener):
     if not wav:
         tts.speak("I didn't catch that.")
         return
+    tts.speak("Let me see.")             # instant feedback: heard you, working on it
     text = stt.transcribe(wav)
     log.info("heard: %s", text)
     print("heard:", text, flush=True)
@@ -25,10 +26,14 @@ def handle_turn(listener):
         return
     intent = router.classify(text)
     log.info("intent: %s", intent)
-    if intent == "add":
+    if intent == "volume":
+        reply = volume.set_from_text(text)
+    elif intent == "add":
         reply = inventory.add_from_text(text)
     elif intent == "suggest":
         reply = inventory.suggest(text)
+    elif intent == "list":
+        reply = inventory.list_stock()
     else:
         reply = llm.ask(text)
     log.info("reply: %s", reply)
