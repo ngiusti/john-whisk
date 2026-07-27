@@ -1,5 +1,5 @@
 import logging
-from john_whisk import config, wake, audio, stt, llm, tts
+from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
@@ -23,7 +23,14 @@ def handle_turn(listener):
     if not text.strip():
         tts.speak("I didn't catch that.")
         return
-    reply = llm.ask(text)
+    intent = router.classify(text)
+    log.info("intent: %s", intent)
+    if intent == "add":
+        reply = inventory.add_from_text(text)
+    elif intent == "suggest":
+        reply = inventory.suggest(text)
+    else:
+        reply = llm.ask(text)
     log.info("reply: %s", reply)
     print("reply:", reply, flush=True)
     if not reply.strip():
@@ -34,6 +41,7 @@ def handle_turn(listener):
 
 def main():
     log.info("John Whisk starting up")
+    db.init_db()
     listener = wake.WakeListener()
     tts.speak("John Whisk is ready.")    # spoken cue: you'll hear this when it's listening
     print("John Whisk is listening. Say the wake word.", flush=True)
