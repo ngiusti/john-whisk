@@ -36,12 +36,21 @@ WAKE_THRESHOLD = 0.5
 WAKE_INFERENCE_FRAMEWORK = "onnx"   # or "tflite" if onnxruntime unavailable
 
 # --- Voice activity detection (end-of-speech) ---
-VAD_AGGRESSIVENESS = 2     # 0-3, higher = more aggressive filtering
+VAD_AGGRESSIVENESS = 3     # 0-3, higher = more aggressive filtering (3 rejects more
+                           # background noise so the Pi fan / kitchen doesn't read as speech)
 SILENCE_MS = 5000          # stop after this much trailing silence (tolerates long pauses)
 MAX_UTTERANCE_MS = 25000   # hard cap on one utterance (raised to fit long pause-filled speech)
 MIN_SPEECH_MS = 300        # ignore blips shorter than this
-COOK_LISTEN_MS = 8000      # hands-free: listen this long for a command between recipe
-                           # steps before falling back to the wake word (recipe kept)
+# Hands-free (between recipe steps): tighter windows than the wake-gated defaults,
+# since commands are short ("next", "back") and responsiveness matters most here.
+HANDS_FREE_COOKING = False  # if True, skip the wake word between recipe steps. Off by
+                            # preference: saying "Hey Jarvis" each time is more natural and
+                            # the wake detector is far more noise-robust than raw VAD.
+COOK_LISTEN_MS = 6000      # listen this long for a command before re-arming the wake word
+COOK_MAX_UTTERANCE_MS = 5000   # cap a single hands-free capture (a noise-triggered clip
+                               # ends in ~5s instead of holding the mic for the full 25s)
+COOK_SILENCE_MS = 1500     # finalize a hands-free command after this much trailing silence
+                           # (snappier than the 5s wake-gated pause)
 
 # --- Paths ---
 IN_WAV = "/tmp/john_whisk_in.wav"
@@ -72,6 +81,23 @@ EXTRACT_PROMPT = (
     "Only extract items the user explicitly says they bought or have. If the text is a "
     'question, a request, or does not clearly list groceries, return {"items": []}. '
     "Never invent items that were not mentioned."
+)
+
+# --- Recipe suggestion (Phase 2) — strict pantry rule ---
+# The hard rule: only suggest from what is actually logged; never invent owned items.
+SUGGEST_PROMPT = (
+    "You are John Whisk suggesting what to cook. The user's message contains the "
+    "EXACT and COMPLETE list of ingredients they currently have. Follow these rules "
+    "strictly and without exception: "
+    "1) Assume they have ONLY the ingredients on that list, plus basic salt, pepper, "
+    "and water. Nothing else exists in their kitchen. "
+    "2) NEVER state or imply they already have any ingredient that is not on the list. "
+    "Do not invent, assume, or add pantry items. "
+    "3) Suggest one or two simple recipes they can make mostly or entirely from the "
+    "listed items. "
+    "4) If a recipe would need an ingredient that is not on the list, you may mention "
+    "it, but you MUST clearly say they would need to buy it first. "
+    "Answer in one to three short spoken sentences, plain conversational text, no lists."
 )
 
 # --- Recipe guidance (Phase 2) ---

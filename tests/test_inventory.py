@@ -28,9 +28,23 @@ def test_suggest_empty_pantry(tmp_path, monkeypatch):
 def test_suggest_with_stock_calls_llm(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", str(tmp_path / "t.db"))
     db.add_items([{"name": "eggs", "quantity": 12, "unit": None}])
-    monkeypatch.setattr(llm, "ask", lambda prompt: "You could make an omelette.")
+    monkeypatch.setattr(llm, "suggest_recipe", lambda pantry, req: "You could make an omelette.")
     reply = inventory.suggest("what can I make?")
     assert reply == "You could make an omelette."
+
+
+def test_suggest_passes_only_logged_items(tmp_path, monkeypatch):
+    # the model must receive exactly what's in the DB and nothing invented
+    monkeypatch.setattr(config, "DB_PATH", str(tmp_path / "t.db"))
+    db.add_items([{"name": "eggs", "quantity": None, "unit": None},
+                  {"name": "spinach", "quantity": None, "unit": None}])
+    captured = {}
+    monkeypatch.setattr(llm, "suggest_recipe",
+                        lambda pantry, req: captured.setdefault("pantry", pantry) or "ok")
+    inventory.suggest("what can I make?")
+    assert "eggs" in captured["pantry"]
+    assert "spinach" in captured["pantry"]
+    assert "chicken" not in captured["pantry"]   # never anything that wasn't logged
 
 
 def test_list_stock_reads_db(tmp_path, monkeypatch):

@@ -32,16 +32,25 @@ def process_utterance(text, session):
     return llm.ask(text), session
 
 
-def _listen(listener, hands_free):
-    """Capture one utterance. Hands-free (mid-recipe) listens without the wake
-    word and gives up after COOK_LISTEN_MS of silence; otherwise it waits for
-    the wake word first. Returns a WAV path or None."""
+def _listen(listener, session, hands_free):
+    """Capture one utterance. Hands-free (opt-in, mid-recipe) listens without the
+    wake word and gives up after COOK_LISTEN_MS of silence. Otherwise it waits
+    for the wake word; while a recipe is active it finalizes on the shorter
+    COOK_SILENCE_MS so "next"/"back" turn around fast. Returns a WAV path or None."""
     if hands_free:
-        return audio.record_until_silence(start_timeout_ms=config.COOK_LISTEN_MS)
+        return audio.record_until_silence(
+            start_timeout_ms=config.COOK_LISTEN_MS,
+            max_utterance_ms=config.COOK_MAX_UTTERANCE_MS,
+            silence_ms=config.COOK_SILENCE_MS,
+        )
     listener.wait()                      # blocks until wake word
     log.info("wake word detected")
     print("[wake detected -> asking]", flush=True)
     audio.chime()                        # audible beep: heard the wake word, ask now
+    if session is not None:
+        # in a recipe: short commands, finalize quickly (keep the full cap in case
+        # it's a longer free-form question)
+        return audio.record_until_silence(silence_ms=config.COOK_SILENCE_MS)
     return audio.record_until_silence()
 
 
@@ -55,7 +64,7 @@ def main():
     hands_free = False                    # skip the wake word while cooking
     while True:
         try:
-            wav = _listen(listener, hands_free)
+            wav = _listen(listener, session, hands_free)
             if not wav:
                 if hands_free:
                     # silence mid-recipe: re-arm the wake word, keep the recipe
@@ -64,8 +73,9 @@ def main():
                 else:
                     tts.speak("I didn't catch that.")
                 continue
-            if not hands_free:
-                tts.speak("Let me see.")  # cue only when wake-gated; nav is instant
+            if session is None and not hands_free:
+                tts.speak("Let me see.")  # cue only for non-recipe turns (may be slow);
+                                          # in-recipe nav is instant, so stay quiet
             text = stt.transcribe(wav)
             log.info("heard: %s", text)
             print("heard:", text, flush=True)
@@ -84,7 +94,8 @@ def main():
                 tts.speak(reply)
             elif not hands_free:
                 tts.speak("Sorry, my brain hiccupped. Try again.")
-            hands_free = session is not None   # stay hands-free while cooking
+            # stay hands-free while cooking only if the opt-in toggle is on
+            hands_free = session is not None and config.HANDS_FREE_COOKING
         except KeyboardInterrupt:
             print("\nShutting down.")
             break

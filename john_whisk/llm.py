@@ -66,6 +66,26 @@ def generate_recipe(dish: str):
     return _parse_recipe(dish, text)
 
 
+def suggest_recipe(pantry: str, request: str) -> str:
+    """Suggest recipes constrained to the pantry. The strict SUGGEST_PROMPT is
+    the authoritative rule: only the listed items are on hand, and the model may
+    not imply the user owns anything else. Returns '' on failure."""
+    prompt = f"The exact and complete list of ingredients I have is: {pantry}. {request}"
+    payload = {
+        "model": config.OLLAMA_MODEL,
+        "prompt": prompt,
+        "system": config.SUGGEST_PROMPT,
+        "stream": False,
+        "options": {"num_ctx": config.NUM_CTX, "num_predict": config.NUM_PREDICT},
+    }
+    try:
+        r = requests.post(config.OLLAMA_URL, json=payload, timeout=config.OLLAMA_TIMEOUT)
+        r.raise_for_status()
+        return r.json().get("response", "").strip()
+    except (requests.RequestException, ValueError):
+        return ""
+
+
 def ask_in_recipe(title: str, step: str, question: str) -> str:
     """Answer a mid-recipe question with the current step as context, so the
     cook doesn't have to leave recipe mode to ask something."""

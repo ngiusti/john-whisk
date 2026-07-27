@@ -61,6 +61,34 @@ def test_generate_recipe_blank_dish():
 
 # --- ask_in_recipe: mid-recipe question keeps recipe context ---------------
 
+def test_suggest_recipe_uses_strict_rule_and_pantry(monkeypatch):
+    from john_whisk import config
+    captured = {}
+
+    def fake_post(url, json=None, timeout=None):
+        captured["payload"] = json
+        return _Resp("You could make a spinach frittata.")
+
+    monkeypatch.setattr(llm.requests, "post", fake_post)
+    out = llm.suggest_recipe("eggs, spinach, chicken", "what can I make?")
+    assert out == "You could make a spinach frittata."
+    payload = captured["payload"]
+    # the exact pantry must reach the model, and the defined strict rule is the system
+    assert "eggs, spinach, chicken" in payload["prompt"]
+    assert payload["system"] == config.SUGGEST_PROMPT
+    # the rule must constrain to owned items and flag anything else as a purchase
+    assert "only" in config.SUGGEST_PROMPT.lower()
+    assert "buy" in config.SUGGEST_PROMPT.lower()
+
+
+def test_suggest_recipe_failure_returns_empty(monkeypatch):
+    def boom(*a, **k):
+        raise llm.requests.RequestException("down")
+
+    monkeypatch.setattr(llm.requests, "post", boom)
+    assert llm.suggest_recipe("eggs", "what can I make?") == ""
+
+
 def test_ask_in_recipe_uses_context(monkeypatch):
     captured = {}
 

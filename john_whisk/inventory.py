@@ -91,9 +91,5 @@ def suggest(text: str) -> str:
     if not stock:
         return "Your pantry's empty. Tell me what you bought first."
     stock_str = ", ".join(_format_item(i) for i in stock)
-    prompt = (
-        f"I have these items in my kitchen: {stock_str}. {text} "
-        "Suggest one or two quick recipe ideas that mostly use these items. "
-        "You may mention one or two common items I'd need to add."
-    )
-    return llm.ask(prompt) or "Sorry, my brain hiccupped. Try again."
+    # Pass ONLY the logged pantry; llm.suggest_recipe enforces the no-invention rule.
+    return llm.suggest_recipe(stock_str, text) or "Sorry, my brain hiccupped. Try again."
