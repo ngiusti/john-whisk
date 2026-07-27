@@ -2,8 +2,9 @@ venv/
 __pycache__/
 *.pyc
 .env
-remy.log
-/tmp/remy_*.wav
+john_whisk.log
+john_whisk.db
+/tmp/john_whisk_*.wav
 models/*.bin
 models/*.onnx
 models/*.ppn
