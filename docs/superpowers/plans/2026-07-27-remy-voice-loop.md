@@ -42,12 +42,18 @@
 
 `~/remy/requirements.txt`:
 ```
-openwakeword==0.6.0
+# openwakeword is installed SEPARATELY with --no-deps to avoid its tflite-runtime
+# dependency (no wheel for Python 3.13). It runs on the onnxruntime backend:
+#   pip install --no-deps openwakeword==0.6.0
 onnxruntime
 webrtcvad
 requests
 numpy
+scipy
+scikit-learn
+tqdm
 pytest
+setuptools<81      # webrtcvad imports pkg_resources, dropped in setuptools>=81
 ```
 
 - [ ] **Step 2: Create the venv and install**
@@ -58,9 +64,10 @@ cd ~/remy
 python3 -m venv venv
 ./venv/bin/pip install --upgrade pip
 ./venv/bin/pip install -r requirements.txt
+./venv/bin/pip install --no-deps openwakeword==0.6.0
 ```
-Expected: all install without error. `onnxruntime` and `numpy` have prebuilt aarch64 wheels; `webrtcvad` compiles against the already-installed `build-essential`.
-If `onnxruntime` has no wheel, fall back to: `./venv/bin/pip install tflite-runtime` and we will pass `inference_framework="tflite"` in Task 7.
+Expected: all install without error. Prebuilt aarch64 wheels exist for onnxruntime/numpy/scipy/scikit-learn; `webrtcvad` compiles against `build-essential`.
+**Why the split:** `openwakeword==0.6.0` hard-requires `tflite-runtime`, which has no wheel for Python 3.13 — so we install its real deps ourselves (above) and add openwakeword `--no-deps`. It runs fine on the onnxruntime backend (Task 7 sets `inference_framework="onnx"`). `setuptools<81` is required because `webrtcvad` imports the now-removed `pkg_resources`.
 
 - [ ] **Step 3: Download openWakeWord base + pretrained models (one-time, needs internet)**
 

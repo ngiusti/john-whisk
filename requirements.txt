@@ -1,0 +1,12 @@
+# openwakeword is installed SEPARATELY with --no-deps to avoid its tflite-runtime
+# dependency (no wheel for Python 3.13). It runs on the onnxruntime backend:
+#   pip install --no-deps openwakeword==0.6.0
+onnxruntime
+webrtcvad
+requests
+numpy
+scipy
+scikit-learn
+tqdm
+pytest
+setuptools<81      # webrtcvad imports pkg_resources, dropped in setuptools>=81
