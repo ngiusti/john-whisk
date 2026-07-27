@@ -1,5 +1,5 @@
 import subprocess
-from remy import config
+from john_whisk import config
 
 
 def transcribe(wav_path: str) -> str:

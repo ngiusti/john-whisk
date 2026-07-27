@@ -1,5 +1,5 @@
 import requests
-from remy import config
+from john_whisk import config
 
 
 def ask(user_text: str) -> str:

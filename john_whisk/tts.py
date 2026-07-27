@@ -1,5 +1,5 @@
 import subprocess
-from remy import config
+from john_whisk import config
 
 
 def synthesize(text: str, out_path: str = None) -> str:
@@ -17,6 +17,6 @@ def speak(text: str) -> None:
     """Synthesize text and play it through the speaker."""
     if not text or not text.strip():
         return
-    from remy import audio          # lazy import: keeps this module usable before Task 6
+    from john_whisk import audio          # lazy import: keeps this module usable before Task 6
     path = synthesize(text)
     audio.play_wav(path)

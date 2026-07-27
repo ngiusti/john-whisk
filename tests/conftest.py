@@ -1,7 +1,7 @@
 import subprocess
 import os
 import pytest
-from remy import config
+from john_whisk import config
 
 
 @pytest.fixture(scope="session")

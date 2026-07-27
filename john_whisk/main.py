@@ -1,18 +1,18 @@
 import logging
-from remy import config, wake, audio, stt, llm, tts
+from john_whisk import config, wake, audio, stt, llm, tts
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
-log = logging.getLogger("remy")
+log = logging.getLogger("john_whisk")
 
 
 def handle_turn(listener):
     listener.wait()                      # blocks until wake word
     log.info("wake word detected")
     print("[wake detected -> asking]", flush=True)
-    audio.chime()                        # audible beep: Remy heard the wake word, ask now
+    audio.chime()                        # audible beep: John Whisk heard the wake word, ask now
     wav = audio.record_until_silence()
     if not wav:
         tts.speak("I didn't catch that.")
@@ -33,10 +33,10 @@ def handle_turn(listener):
 
 
 def main():
-    log.info("Remy starting up")
+    log.info("John Whisk starting up")
     listener = wake.WakeListener()
-    tts.speak("Remy is ready.")          # spoken cue: you'll hear this when it's listening
-    print("Remy is listening. Say the wake word.", flush=True)
+    tts.speak("John Whisk is ready.")    # spoken cue: you'll hear this when it's listening
+    print("John Whisk is listening. Say the wake word.", flush=True)
     while True:
         try:
             handle_turn(listener)

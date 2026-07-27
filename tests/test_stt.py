@@ -1,4 +1,4 @@
-from remy import stt
+from john_whisk import stt
 
 
 def test_transcribe_known_phrase(spoken_wav):

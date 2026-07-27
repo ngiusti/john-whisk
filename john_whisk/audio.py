@@ -5,31 +5,9 @@ import wave
 import contextlib
 import numpy as np
 import webrtcvad
-from remy import config
+from john_whisk import config
 
-_CHIME_PATH = "/tmp/remy_chime.wav"
-
-
-def _open_mic_stream(frame_bytes: int):
-    """Open arecord and confirm it is STABLY streaming. Retries if the ALSA
-    device is momentarily busy or resets right after opening (release lag from
-    the wake listener). Returns a live Popen (priming frames consumed) or None."""
-    time.sleep(0.3)                         # let the previous mic user's ALSA release settle
-    for _ in range(20):                     # up to ~5s of retries
-        proc = subprocess.Popen(
-            ["arecord", "-D", config.MIC_DEVICE, "-f", "S16_LE",
-             "-r", str(config.SAMPLE_RATE), "-c", "1", "-t", "raw", "-q"],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-        )
-        # require several consecutive full frames — one isn't enough to prove
-        # the stream survived the device reset.
-        stable = all(len(proc.stdout.read(frame_bytes)) == frame_bytes for _ in range(5))
-        if stable:
-            return proc
-        proc.terminate()
-        proc.wait()
-        time.sleep(0.2)
-    return None
+_CHIME_PATH = "/tmp/john_whisk_chime.wav"
 
 
 def play_wav(path: str) -> None:
@@ -63,6 +41,28 @@ def _write_wav(path, pcm_bytes):
         w.setsampwidth(2)          # S16_LE
         w.setframerate(config.SAMPLE_RATE)
         w.writeframes(pcm_bytes)
+
+
+def _open_mic_stream(frame_bytes: int):
+    """Open arecord and confirm it is STABLY streaming. Retries if the ALSA
+    device is momentarily busy or resets right after opening (release lag from
+    the wake listener). Returns a live Popen (priming frames consumed) or None."""
+    time.sleep(0.3)                         # let the previous mic user's ALSA release settle
+    for _ in range(20):                     # up to ~5s of retries
+        proc = subprocess.Popen(
+            ["arecord", "-D", config.MIC_DEVICE, "-f", "S16_LE",
+             "-r", str(config.SAMPLE_RATE), "-c", "1", "-t", "raw", "-q"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        )
+        # require several consecutive full frames — one isn't enough to prove
+        # the stream survived the device reset.
+        stable = all(len(proc.stdout.read(frame_bytes)) == frame_bytes for _ in range(5))
+        if stable:
+            return proc
+        proc.terminate()
+        proc.wait()
+        time.sleep(0.2)
+    return None
 
 
 def record_until_silence(out_path: str = None):

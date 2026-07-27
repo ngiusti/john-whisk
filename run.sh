@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-exec ./venv/bin/python -u -m remy.main
+exec ./venv/bin/python -u -m john_whisk.main

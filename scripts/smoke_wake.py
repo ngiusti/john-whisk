@@ -1,5 +1,5 @@
 """Manual test (needs mic): prints when the wake word is detected."""
-from remy.wake import WakeListener
+from john_whisk.wake import WakeListener
 
 print("Loading wake model...")
 w = WakeListener()

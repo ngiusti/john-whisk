@@ -1,4 +1,4 @@
-from remy import config
+from john_whisk import config
 
 
 def test_core_constants_present():
@@ -6,5 +6,5 @@ def test_core_constants_present():
     assert config.MIC_DEVICE.startswith("plughw:")
     assert config.SPEAKER_DEVICE.startswith("plughw:")
     assert config.NUM_CTX == 2048          # required or the 3B OOMs
-    assert "Remy" in config.SYSTEM_PROMPT
+    assert "John Whisk" in config.SYSTEM_PROMPT
     assert config.WAKE_THRESHOLD > 0

@@ -1,7 +1,7 @@
 import subprocess
 import numpy as np
 from openwakeword.model import Model
-from remy import config
+from john_whisk import config
 
 
 class WakeListener:

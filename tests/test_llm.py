@@ -1,4 +1,4 @@
-from remy import llm
+from john_whisk import llm
 
 
 def test_ask_returns_nonempty_text():

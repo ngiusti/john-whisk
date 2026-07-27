@@ -28,7 +28,7 @@ PIPER_DIR = os.path.join(HOME, "piper")            # cwd so it finds espeak-ng-d
 PIPER_VOICE = os.path.join(HOME, "piper/voices/en_US-amy-medium.onnx")
 
 # --- Wake word (openWakeWord) ---
-# Prototype with built-in "hey_jarvis"; swap to a custom .onnx path later.
+# Prototype with built-in "hey_jarvis"; swap to the custom "Hey John Whisk" .onnx path.
 WAKE_MODEL = "hey_jarvis"
 WAKE_THRESHOLD = 0.5
 WAKE_INFERENCE_FRAMEWORK = "onnx"   # or "tflite" if onnxruntime unavailable
@@ -40,14 +40,14 @@ MAX_UTTERANCE_MS = 12000   # hard cap on one utterance
 MIN_SPEECH_MS = 300        # ignore blips shorter than this
 
 # --- Paths ---
-IN_WAV = "/tmp/remy_in.wav"
-OUT_WAV = "/tmp/remy_out.wav"
-LOG_FILE = os.path.join(HOME, "remy/remy.log")
+IN_WAV = "/tmp/john_whisk_in.wav"
+OUT_WAV = "/tmp/john_whisk_out.wav"
+LOG_FILE = os.path.join(HOME, "john-whisk/john_whisk.log")
 
 # --- LLM persona ---
 SYSTEM_PROMPT = (
-    "You are Remy, a friendly, concise kitchen assistant speaking out loud to a cook. "
-    "Answer in 1-3 short spoken sentences. Use plain conversational text only: no "
+    "You are John Whisk, a friendly, concise kitchen assistant speaking out loud to a "
+    "cook. Answer in 1-3 short spoken sentences. Use plain conversational text only: no "
     "markdown, no bullet points, no numbered lists, no emoji. If asked for a recipe, "
     "give a quick spoken summary, not a full written recipe."
 )
