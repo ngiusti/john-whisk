@@ -21,6 +21,7 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3.2:3b"
 NUM_CTX = 2048        # MUST be set; default context OOMs the 3B on 4GB
 NUM_PREDICT = 200     # cap spoken reply length
+NUM_PREDICT_RECIPE = 600   # recipes are longer than a one-off spoken reply
 OLLAMA_TIMEOUT = 60   # seconds
 
 # --- Piper (text-to-speech) ---
@@ -69,4 +70,16 @@ EXTRACT_PROMPT = (
     "Only extract items the user explicitly says they bought or have. If the text is a "
     'question, a request, or does not clearly list groceries, return {"items": []}. '
     "Never invent items that were not mentioned."
+)
+
+# --- Recipe guidance (Phase 2) ---
+RECIPE_PROMPT = (
+    "You are a cooking assistant. The user names a dish; give a simple recipe for it. "
+    "Respond in EXACTLY this format and nothing else:\n"
+    "INGREDIENTS: <comma-separated ingredients with rough quantities>\n"
+    "STEPS:\n"
+    "1. <short imperative step>\n"
+    "2. <short imperative step>\n"
+    "Use between 3 and 12 steps, one per line, each a single short sentence. "
+    "No markdown, no extra commentary before or after the list."
 )

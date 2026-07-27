@@ -1,4 +1,5 @@
 import json
+import re
 import requests
 from john_whisk import config
 
@@ -20,6 +21,60 @@ def ask(user_text: str) -> str:
         return r.json().get("response", "").strip()
     except (requests.RequestException, ValueError):
         return ""
+
+
+def _parse_recipe(title: str, text: str):
+    """Turn the model's INGREDIENTS/STEPS reply into a recipe dict, or None if
+    fewer than two steps could be parsed (garbage / format not followed)."""
+    ingredients = ""
+    steps = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = re.match(r"(?i)^ingredients\s*:\s*(.+)$", line)
+        if m:
+            ingredients = m.group(1).strip()
+            continue
+        m = re.match(r"^\d+[.)]\s*(.+)$", line)
+        if m:
+            steps.append(m.group(1).strip())
+    if len(steps) < 2:
+        return None
+    return {"title": title, "ingredients": ingredients, "steps": steps}
+
+
+def generate_recipe(dish: str):
+    """Ask the LLM for a recipe for `dish`. Returns {title, ingredients, steps}
+    or None on empty input, request failure, or an unparseable reply."""
+    if not dish or not dish.strip():
+        return None
+    dish = dish.strip()
+    payload = {
+        "model": config.OLLAMA_MODEL,
+        "prompt": f"Give a recipe for {dish}.",
+        "system": config.RECIPE_PROMPT,
+        "stream": False,
+        "options": {"num_ctx": config.NUM_CTX, "num_predict": config.NUM_PREDICT_RECIPE},
+    }
+    try:
+        r = requests.post(config.OLLAMA_URL, json=payload, timeout=config.OLLAMA_TIMEOUT)
+        r.raise_for_status()
+        text = r.json().get("response", "")
+    except (requests.RequestException, ValueError):
+        return None
+    return _parse_recipe(dish, text)
+
+
+def ask_in_recipe(title: str, step: str, question: str) -> str:
+    """Answer a mid-recipe question with the current step as context, so the
+    cook doesn't have to leave recipe mode to ask something."""
+    prompt = (
+        f"You are guiding me through cooking {title}. "
+        f'I am currently on this step: "{step}". '
+        f"I asked: {question} Answer briefly for a cook in the middle of the recipe."
+    )
+    return ask(prompt)
 
 
 def extract_items(text: str):

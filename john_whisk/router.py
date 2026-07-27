@@ -9,6 +9,11 @@ LIST_TRIGGERS = [
     "whats in the pantry", "list my", "my inventory", "in my pantry",
     "what's in my pantry", "do i have",
 ]
+COOK_TRIGGERS = [
+    "let's make", "lets make", "let's cook", "lets cook", "walk me through",
+    "guide me through", "how do i make", "how do you make", "how do i cook",
+    "start the recipe", "start cooking", "help me make",
+]
 REMOVE_TRIGGERS = [
     "out of", "ran out", "run out", "used up", "used the last", "used all",
     "used the rest", "no more", "throw out", "threw out", "all gone",
@@ -21,12 +26,16 @@ ADD_TRIGGERS = [
 
 
 def classify(text: str) -> str:
-    """Return 'volume', 'add', 'suggest', 'list', 'remove', or 'general'.
-    Precedence: volume -> suggest -> list -> remove -> add -> general.
-    (remove before add so "out of milk" isn't mistaken for a purchase.)"""
+    """Return 'volume', 'cook', 'suggest', 'list', 'remove', 'add', or 'general'.
+    Precedence: volume -> cook -> suggest -> list -> remove -> add -> general.
+    (cook before suggest so "let's make the omelette" starts a recipe while
+    "what can I make" stays a browse; remove before add so "out of milk" isn't
+    mistaken for a purchase.)"""
     t = " " + text.lower().strip() + " "
     if "volume" in t:
         return "volume"
+    if any(k in t for k in COOK_TRIGGERS):
+        return "cook"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):
