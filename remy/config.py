@@ -2,9 +2,12 @@ import os
 
 HOME = os.path.expanduser("~")
 
-# --- Audio devices (from `arecord -l` / `aplay -l`) ---
-MIC_DEVICE = "plughw:2,0"       # SunFounder USB mic
-SPEAKER_DEVICE = "plughw:3,0"   # HONKYOB USB speaker
+# --- Audio devices ---
+# Use stable ALSA card NAMES, not numbers: USB card numbers shuffle across reboots
+# (mic/speaker swapped between 2/3 on a reboot). Names are tied to the USB device.
+#   arecord -L / aplay -L  ->  plughw:CARD=<id>,DEV=0     ( ids from /proc/asound/cards )
+MIC_DEVICE = "plughw:CARD=Device,DEV=0"          # USB PnP Sound Device (C-Media) — mic
+SPEAKER_DEVICE = "plughw:CARD=UACDemoV10,DEV=0"   # UACDemoV1.0 (Jieli) — speaker
 SAMPLE_RATE = 16000             # whisper + openwakeword both want 16 kHz mono
 
 # --- Whisper (speech-to-text) ---
