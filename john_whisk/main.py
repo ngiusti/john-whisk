@@ -27,9 +27,12 @@ def process_utterance(text, session):
         return inventory.suggest(text), session
     if intent == "list":
         return inventory.list_stock(), session
+    if intent == "check":
+        return inventory.check(text), session
     if intent == "remove":
         return inventory.remove_from_text(text), session
-    return llm.ask(text), session
+    # general fallback: grounded with the real pantry so it can't invent inventory
+    return inventory.ask_general(text), session
 
 
 def _listen(listener, session, hands_free):

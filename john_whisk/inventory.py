@@ -41,6 +41,38 @@ def parse_removed_names(text: str) -> list:
     return names
 
 
+# Lead-ins before the queried item in a "do we have X?" question.
+_QUERY_LEADINS = [
+    "do we still have any", "do we still have", "do i still have any",
+    "do i still have", "do we have any", "do we have", "do i have any",
+    "do i have", "do you have any", "do you have", "have we got any",
+    "have we got", "have i got any", "have i got", "is there any",
+    "are there any", "is there", "are there", "got any",
+]
+_QUERY_FILLERS = {"the", "some", "a", "an", "my", "our", "more", "left", "in",
+                  "stock", "pantry", "fridge", "any", "still"}
+
+
+def parse_queried_names(text: str) -> list:
+    """Pull the queried item name(s) out of a "do we have X?" question,
+    deterministically (no LLM). Returns lowercase names, possibly multiword."""
+    t = re.sub(r"[^a-z0-9\s]", " ", text.lower())
+    t = re.sub(r"\s+", " ", t).strip()
+    best_end = -1
+    for lead in _QUERY_LEADINS:
+        idx = t.find(lead)
+        if idx != -1 and idx + len(lead) > best_end:
+            best_end = idx + len(lead)
+    tail = t[best_end:].strip() if best_end != -1 else t
+    names = []
+    for chunk in tail.split(" and "):
+        words = [w for w in chunk.split() if w not in _QUERY_FILLERS]
+        name = " ".join(words).strip()
+        if name:
+            names.append(name)
+    return names
+
+
 def _format_item(item) -> str:
     """'2 eggs', '12 eggs', or just 'spinach' when quantity is unknown."""
     q = item["quantity"]
@@ -75,6 +107,22 @@ def list_stock() -> str:
     return "You have " + _join([_format_item(i) for i in stock]) + "."
 
 
+def check(text: str) -> str:
+    """Answer "do we have X?" straight from the DB, never from the model — so it
+    cannot invent inventory. Falls back to a full list if no item was parsed."""
+    names = parse_queried_names(text)
+    if not names:
+        return list_stock()
+    found = db.find_items(names)
+    have = [m for _, m in found if m]
+    missing = [q for q, m in found if not m]
+    if have and not missing:
+        return "Yes, you have " + _join(have) + "."
+    if missing and not have:
+        return "No, I don't see any " + _join(missing) + " on your list."
+    return "You have " + _join(have) + ", but no " + _join(missing) + "."
+
+
 def remove_from_text(text: str) -> str:
     """Handle "we're out of X": drop the item(s) from the pantry and confirm."""
     names = parse_removed_names(text)
@@ -84,6 +132,14 @@ def remove_from_text(text: str) -> str:
     if not removed:
         return "You didn't have any " + _join(names) + " logged anyway."
     return "Okay, took " + _join(removed) + " off your list."
+
+
+def ask_general(text: str) -> str:
+    """General Q&A fallback, grounded with the real pantry so the model can't
+    invent inventory even for phrasings that slip past the check intent."""
+    stock = db.get_inventory()
+    pantry = ", ".join(_format_item(i) for i in stock) if stock else ""
+    return llm.ask_grounded(text, pantry) or "Sorry, my brain hiccupped. Try again."
 
 
 def suggest(text: str) -> str:

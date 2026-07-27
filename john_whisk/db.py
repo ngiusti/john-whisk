@@ -81,6 +81,21 @@ def remove_items(names):
     return removed
 
 
+def find_items(names):
+    """For each queried name, return (queried, stored_name or None), matching
+    with the same singular/plural tolerance as removal. Lets callers answer
+    "do we have X" straight from the DB — no LLM, so no invented inventory."""
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        stored = [r[0] for r in c.execute("SELECT name FROM inventory").fetchall()]
+    out = []
+    for q in names:
+        target = _singular(q)
+        match = next((s for s in stored if _singular(s) == target), None)
+        out.append((q, match))
+    return out
+
+
 def get_inventory():
     init_db()
     with contextlib.closing(_conn()) as c:

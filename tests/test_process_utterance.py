@@ -21,7 +21,7 @@ def test_cook_intent_starts_session(monkeypatch):
 
 def test_general_intent_leaves_session_none(monkeypatch):
     monkeypatch.setattr(main.router, "classify", lambda t: "general")
-    monkeypatch.setattr(main.llm, "ask", lambda t: "About six minutes.")
+    monkeypatch.setattr(main.inventory, "ask_general", lambda t: "About six minutes.")
     reply, session = main.process_utterance("how long to boil an egg", None)
     assert reply == "About six minutes."
     assert session is None
