@@ -34,6 +34,8 @@ def handle_turn(listener):
         reply = inventory.suggest(text)
     elif intent == "list":
         reply = inventory.list_stock()
+    elif intent == "remove":
+        reply = inventory.remove_from_text(text)
     else:
         reply = llm.ask(text)
     log.info("reply: %s", reply)

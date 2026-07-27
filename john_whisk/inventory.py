@@ -1,4 +1,44 @@
+import re
+
 from john_whisk import db, llm
+
+# Lead-in phrases that precede the item(s) in a "we're out of X" utterance.
+# Stored already normalized (letters/digits/space only) so contractions like
+# "we're" -> "we re" match after the same normalization is applied to speech.
+_REMOVE_LEADINS = [
+    "used the last of the", "used the last of", "used all of the",
+    "used all the", "used the rest of the", "used the rest of",
+    "we re all out of", "we re out of", "i m out of", "im out of",
+    "all out of", "ran out of", "run out of", "used up", "used the last",
+    "no more", "throw out the", "throw out", "threw out the", "threw out",
+    "remove the", "remove", "delete the", "delete", "all gone", "out of",
+]
+# Words to drop from the edges of a parsed item name.
+_REMOVE_FILLERS = {"the", "of", "some", "a", "an", "my", "any", "left", "please"}
+
+
+def parse_removed_names(text: str) -> list:
+    """Pull the item name(s) out of a removal utterance, deterministically —
+    no LLM (per the architecture note: keep pure intent+data ops out of the
+    hot path). Returns a list of lowercase names, possibly multiword."""
+    t = re.sub(r"[^a-z0-9\s]", " ", text.lower())
+    t = re.sub(r"\s+", " ", t).strip()
+    # Consume as much lead-in as possible: pick the match that ends latest.
+    best_end = -1
+    for lead in _REMOVE_LEADINS:
+        idx = t.find(lead)
+        if idx != -1 and idx + len(lead) > best_end:
+            best_end = idx + len(lead)
+    if best_end == -1:
+        return []
+    tail = t[best_end:].strip()
+    names = []
+    for chunk in tail.split(" and "):
+        words = [w for w in chunk.split() if w not in _REMOVE_FILLERS]
+        name = " ".join(words).strip()
+        if name:
+            names.append(name)
+    return names
 
 
 def _format_item(item) -> str:
@@ -33,6 +73,17 @@ def list_stock() -> str:
     if not stock:
         return "Your pantry's empty. Tell me what you bought first."
     return "You have " + _join([_format_item(i) for i in stock]) + "."
+
+
+def remove_from_text(text: str) -> str:
+    """Handle "we're out of X": drop the item(s) from the pantry and confirm."""
+    names = parse_removed_names(text)
+    if not names:
+        return "I didn't catch what you ran out of. Try again."
+    removed = db.remove_items(names)
+    if not removed:
+        return "You didn't have any " + _join(names) + " logged anyway."
+    return "Okay, took " + _join(removed) + " off your list."
 
 
 def suggest(text: str) -> str:

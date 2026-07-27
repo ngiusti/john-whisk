@@ -9,6 +9,11 @@ LIST_TRIGGERS = [
     "whats in the pantry", "list my", "my inventory", "in my pantry",
     "what's in my pantry", "do i have",
 ]
+REMOVE_TRIGGERS = [
+    "out of", "ran out", "run out", "used up", "used the last", "used all",
+    "used the rest", "no more", "throw out", "threw out", "all gone",
+    "remove ", "delete ",
+]
 ADD_TRIGGERS = [
     "bought", "grabbed", "picked up", "purchased", "just got", "stock up",
     " got ", "add ",
@@ -16,8 +21,9 @@ ADD_TRIGGERS = [
 
 
 def classify(text: str) -> str:
-    """Return 'volume', 'add', 'suggest', 'list', or 'general'.
-    Precedence: volume -> suggest -> list -> add -> general."""
+    """Return 'volume', 'add', 'suggest', 'list', 'remove', or 'general'.
+    Precedence: volume -> suggest -> list -> remove -> add -> general.
+    (remove before add so "out of milk" isn't mistaken for a purchase.)"""
     t = " " + text.lower().strip() + " "
     if "volume" in t:
         return "volume"
@@ -25,6 +31,8 @@ def classify(text: str) -> str:
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):
         return "list"
+    if any(k in t for k in REMOVE_TRIGGERS):
+        return "remove"
     if any(k in t for k in ADD_TRIGGERS):
         return "add"
     return "general"
