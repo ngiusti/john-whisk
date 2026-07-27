@@ -20,7 +20,7 @@ the *next* iterations and must not creep into this one.
 
 | Stage | Tool | Notes |
 |---|---|---|
-| Wake word | Porcupine (`pvporcupine`) | Custom "Hey John Whisk" model; always-listening, tiny footprint. Access key via env var. |
+| Wake word | openWakeWord (`openwakeword`) | Fully offline, **no account/key**. Custom "Hey John Whisk" model trained in a free Colab notebook; prototype with a built-in word ("hey jarvis") first. Runs a melspectrogram + small detector continuously via onnxruntime. |
 | Speech-to-text | whisper.cpp `whisper-cli` + `ggml-base.en.bin` | ~2.4s for 6s audio. Called as subprocess. |
 | LLM | Ollama HTTP API, `llama3.2:3b` | ~5.6 tok/s. **Must send `options.num_ctx=2048`** or it OOMs. Frugal env already set. |
 | Text-to-speech | Piper `en_US-amy-medium` | ~6x real-time. Called as subprocess → WAV → `aplay`. |
@@ -37,9 +37,9 @@ load during a turn) and matching the "separate testable modules" principle.
   venv/                      # Python virtualenv (Debian 13 requires it)
   remy/
     config.py    # device indices (mic hw:2,0, speaker hw:3,0), model paths,
-                 #   model names, LLM system prompt, PICOVOICE_ACCESS_KEY from env
+                 #   model names, wake model + threshold, LLM system prompt
     audio.py     # record_until_silence() [webrtcvad], play_wav()
-    wake.py      # WakeListener.wait() — blocks until "Hey John Whisk" (pvporcupine)
+    wake.py      # WakeListener.wait() — blocks until wake word (openWakeWord)
     stt.py       # transcribe(wav_path) -> str   [shells out to whisper-cli]
     llm.py       # ask(user_text) -> str          [Ollama HTTP API, num_ctx=2048]
     tts.py       # speak(text)                     [piper -> wav -> aplay]
@@ -73,13 +73,13 @@ tts.speak(reply_text)  →  Piper WAV  →  aplay on hw:3,0
       └────────► back to wake-listening
 ```
 
-## Configuration & the one secret
+## Configuration
 
 - `config.py` centralizes all tunables: ALSA device indices, model file paths,
-  Ollama model + `num_ctx`, VAD silence threshold, and the LLM system prompt.
-- **Picovoice access key is read from `PICOVOICE_ACCESS_KEY` env var — never
-  hardcoded / never committed.** `run.sh` exports it (sourced from an untracked
-  `~/remy/.env`, which is gitignored).
+  Ollama model + `num_ctx`, VAD silence threshold, wake-word model path +
+  detection threshold, and the LLM system prompt.
+- **No secrets** — openWakeWord needs no account/key, so there is nothing to keep
+  out of git. `run.sh` just activates the venv and runs `main.py`.
 - System prompt keeps Remy concise and spoken-friendly: short answers, plain text
   (no markdown/lists that sound wrong when read aloud), kitchen-focused.
 
@@ -110,9 +110,13 @@ Manual dev launch over SSH: `~/remy/run.sh`, watch `remy.log`. Converting to a
 boot-time `systemd` service happens only after the loop works — same staged
 approach used for Ollama.
 
-## Prerequisite requiring the user
+## Wake-word plan (openWakeWord)
 
-Porcupine needs a **free Picovoice account**: create the custom "Hey John Whisk"
-wake-word model on the Picovoice Console, download the `.ppn` file, and copy the
-AccessKey. This is the one manual step; everything else is automatable. The loop
-still runs fully offline (the key is validated locally).
+- **Prototype phase:** use a built-in openWakeWord model ("hey jarvis") so the loop
+  can be built and tested end-to-end immediately — no blocking on a custom model.
+- **Custom "Hey John Whisk":** trained one-time in openWakeWord's free Google Colab
+  notebook (requires only a Gmail account; the training generates synthetic speech
+  samples of the phrase and trains a small detector). Download the resulting model
+  file (`.onnx`/`.tflite`) and drop it in `~/remy/models/`; flip one path in
+  `config.py` to switch from "hey jarvis" to "Hey John Whisk".
+- Everything runs fully offline on the Pi; Colab is only used once, for training.
