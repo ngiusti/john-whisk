@@ -8,3 +8,7 @@ def test_core_constants_present():
     assert config.NUM_CTX == 2048          # required or the 3B OOMs
     assert "John Whisk" in config.SYSTEM_PROMPT
     assert config.WAKE_THRESHOLD > 0
+
+def test_inventory_config_present():
+    assert config.DB_PATH.endswith("john_whisk.db")
+    assert "json" in config.EXTRACT_PROMPT.lower()

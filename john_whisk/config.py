@@ -51,3 +51,14 @@ SYSTEM_PROMPT = (
     "markdown, no bullet points, no numbered lists, no emoji. If asked for a recipe, "
     "give a quick spoken summary, not a full written recipe."
 )
+
+# --- Inventory (Phase 2) ---
+DB_PATH = os.path.join(HOME, "john-whisk/john_whisk.db")
+
+EXTRACT_PROMPT = (
+    "The user just told you which groceries they bought. Extract each food item and its "
+    "quantity. Respond with ONLY JSON of the form "
+    '{"items": [{"name": <singular lowercase string>, "quantity": <number or null>, '
+    '"unit": <string or null>}]}. Use null quantity for vague amounts like "some" or "a bit". '
+    "Convert number words to digits (a dozen = 12, a couple = 2, a few = 3, half a dozen = 6)."
+)
