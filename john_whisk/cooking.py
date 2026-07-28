@@ -12,6 +12,11 @@ _COOK_LEADINS = [
     "i want to make", "i d like to make", "help me make", "let s make",
     "lets make", "let s cook", "lets cook", "also make", "also cook",
     "next make", "then make", "make the", "cook the",
+    # planning phrasings (used by the grocery planner via dish_from_text)
+    "i would like to make", "would like to make", "i m going to make",
+    "im going to make", "going to make", "planning to make", "plan to make",
+    "what do i need to make", "what do i need for", "add ingredients for",
+    "shop for",
 ]
 _DISH_FILLERS = {"the", "a", "an", "some", "me", "for"}
 
@@ -143,7 +148,7 @@ def start(dish: str):
     """Open a session for a dish. Prefer a stored recipe (no LLM needed); fall
     back to LLM generation on a miss. Returns (session, spoken reply), with
     session None if no recipe could be made."""
-    recipe = recipes.find(dish) or llm.generate_recipe(dish)
+    recipe = recipes.resolve(dish)
     if not recipe:
         return None, "Sorry, I couldn't put a recipe together for that. Try another dish."
     session = CookingSession(recipe["title"], recipe["ingredients"], recipe["steps"])

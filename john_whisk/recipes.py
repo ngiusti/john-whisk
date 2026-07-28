@@ -6,7 +6,7 @@ import datetime
 import json
 import re
 
-from john_whisk import config
+from john_whisk import config, llm
 
 
 def _conn():
@@ -105,6 +105,12 @@ def search(query, limit=5):
             if row:
                 out.append(_row_to_recipe(row))
     return out
+
+
+def resolve(dish):
+    """The dish's recipe: a stored one if we have it (no LLM), else LLM-generated.
+    Shared by cooking.start and the meal planner. Returns a recipe dict or None."""
+    return find(dish) or llm.generate_recipe(dish)
 
 
 def count() -> int:

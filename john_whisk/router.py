@@ -10,6 +10,20 @@ RECIPE_QUERY_TRIGGERS = [
     "is there a recipe", "do you know a recipe", "what recipes", "which recipes",
     "how many recipes", "recipe for",
 ]
+# Plan a meal: find the recipe and add MISSING ingredients to the grocery list
+# (does not start cooking). Distinct from cook ("let's make X") — these are
+# desire/intent phrasings the router's cook triggers don't cover.
+PLAN_TRIGGERS = [
+    "i would like to make", "i'd like to make", "i want to make",
+    "i'm going to make", "im going to make", "planning to make", "plan to make",
+    "what do i need to make", "what do i need for", "add ingredients for",
+    "shop for",
+]
+# Grocery-list management. Placed before add/remove so "add X to my grocery
+# list" / "remove X from my grocery list" don't fall into pantry add/remove.
+GROCERY_TRIGGERS = [
+    "grocery list", "shopping list", "what do i need to buy", "need to buy",
+]
 LIST_TRIGGERS = [
     "what do i have", "what have i got", "what's in my", "whats in my",
     "what do i have left", "what's in stock", "whats in stock",
@@ -60,6 +74,10 @@ def classify(text: str) -> str:
         return "cook"
     if any(k in t for k in RECIPE_QUERY_TRIGGERS):
         return "recipe_query"
+    if any(k in t for k in PLAN_TRIGGERS):
+        return "plan"
+    if any(k in t for k in GROCERY_TRIGGERS):
+        return "grocery"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):
