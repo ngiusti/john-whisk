@@ -24,6 +24,14 @@ PLAN_TRIGGERS = [
 GROCERY_TRIGGERS = [
     "grocery list", "shopping list", "what do i need to buy", "need to buy",
 ]
+# Dietary restrictions (set/list/remove). Before add/suggest so "I'm allergic to
+# nuts" isn't a pantry add and "I'm vegetarian" isn't a suggestion.
+DIETARY_TRIGGERS = [
+    "allergic to", "allergy", "gluten free", "gluten-free", "dairy free",
+    "dairy-free", "i'm vegetarian", "im vegetarian", "vegetarian", "vegan",
+    "my restriction", "my restrictions", "dietary", "restriction", "i can eat",
+    "not allergic",
+]
 LIST_TRIGGERS = [
     "what do i have", "what have i got", "what's in my", "whats in my",
     "what do i have left", "what's in stock", "whats in stock",
@@ -78,6 +86,8 @@ def classify(text: str) -> str:
         return "plan"
     if any(k in t for k in GROCERY_TRIGGERS):
         return "grocery"
+    if any(k in t for k in DIETARY_TRIGGERS):
+        return "dietary"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):

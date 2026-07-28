@@ -7,7 +7,7 @@ import contextlib
 import datetime
 import re
 
-from john_whisk import config, db, recipes
+from john_whisk import config, db, recipes, restrictions
 
 _STAPLES = {"salt", "pepper", "water", "oil"}
 
@@ -146,11 +146,13 @@ def plan_meal(dish):
     recipe = recipes.resolve(dish)
     if not recipe:
         return f"I don't have a recipe for {dish}."
+    warn = restrictions.warning(recipe)      # dietary heads-up, then still plan
+    prefix = (warn + " ") if warn else ""
     missing = _missing(recipe.get("ingredients", ""), db.get_inventory())
     if not missing:
-        return f"You've got everything for {recipe['title']}!"
+        return prefix + f"You've got everything for {recipe['title']}!"
     add(missing)
-    return "Adding missing ingredients: " + _join(missing) + "."
+    return prefix + "Adding missing ingredients: " + _join(missing) + "."
 
 
 def answer_list():
