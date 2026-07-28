@@ -1,6 +1,6 @@
 import re
 
-from john_whisk import llm, inventory, recipes, restrictions, ratings
+from john_whisk import llm, inventory, recipes, restrictions, ratings, equipment
 
 # Lead-in phrases before the dish name in a "let's make X" utterance.
 # Normalized (letters/digits/space only) so contractions match after the same
@@ -154,8 +154,10 @@ def start(dish: str):
     session = CookingSession(recipe["title"], recipe["ingredients"], recipe["steps"])
     ratings.cooked(recipe["title"])          # this becomes the "that was great" target
     reply = opening(session)
-    warn = restrictions.warning(recipe)      # dietary heads-up (warn-and-proceed)
-    return session, (warn + " " + reply if warn else reply)
+    # dietary + equipment heads-ups (warn-and-proceed; the session still starts)
+    warns = " ".join(w for w in (restrictions.warning(recipe),
+                                 equipment.warning(recipe)) if w)
+    return session, (warns + " " + reply if warns else reply)
 
 
 def navigate(session, text):

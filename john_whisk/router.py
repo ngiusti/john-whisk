@@ -40,6 +40,18 @@ RATE_TRIGGERS = [
     "rate", "don't suggest", "dont suggest", "never again", "delicious",
     "my favorite", "my favourite", "favorite recipe", "what do i like",
 ]
+# Kitchen equipment (declare/list/remove). Specific appliance names + "I have a"
+# phrasings; before add so "I've got a blender" isn't a pantry add. Bare common
+# words (oven/grill/microwave) are omitted here to avoid shadowing cook.
+EQUIPMENT_TRIGGERS = [
+    "equipment", "appliance", "blender", "food processor", "slow cooker",
+    "crockpot", "crock pot", "air fryer", "pressure cooker", "instant pot",
+    "waffle iron", "stand mixer",
+    # trailing space so "i have a " matches "I have a blender" but not
+    # "do I have any spinach" (the router pads the text with spaces).
+    "i have a ", "i have an ", "i've got a ", "ive got a ",
+    "i don't have a ", "i dont have a ",
+]
 LIST_TRIGGERS = [
     "what do i have", "what have i got", "what's in my", "whats in my",
     "what do i have left", "what's in stock", "whats in stock",
@@ -98,6 +110,8 @@ def classify(text: str) -> str:
         return "dietary"
     if any(k in t for k in RATE_TRIGGERS):
         return "rate"
+    if any(k in t for k in EQUIPMENT_TRIGGERS):
+        return "equipment"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):

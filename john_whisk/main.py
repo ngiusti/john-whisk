@@ -1,5 +1,5 @@
 import logging
-from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings
+from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
@@ -29,6 +29,8 @@ def process_utterance(text, kitchen):
         return restrictions.handle(text)
     if intent == "rate":
         return ratings.handle(text)
+    if intent == "equipment":
+        return equipment.handle(text)
     if intent == "volume":
         return volume.set_from_text(text)
     if intent == "add":
