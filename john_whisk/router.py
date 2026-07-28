@@ -24,6 +24,43 @@ PLAN_TRIGGERS = [
 GROCERY_TRIGGERS = [
     "grocery list", "shopping list", "what do i need to buy", "need to buy",
 ]
+# Dietary restrictions (set/list/remove). Before add/suggest so "I'm allergic to
+# nuts" isn't a pantry add and "I'm vegetarian" isn't a suggestion.
+DIETARY_TRIGGERS = [
+    "allergic to", "allergy", "gluten free", "gluten-free", "dairy free",
+    "dairy-free", "i'm vegetarian", "im vegetarian", "vegetarian", "vegan",
+    "my restriction", "my restrictions", "dietary", "restriction", "i can eat",
+    "not allergic",
+]
+# Rate a cooked recipe / query favorites. After cook + plan so "let's make X" and
+# "I would like to make X" aren't caught; before suggest.
+RATE_TRIGGERS = [
+    "that was", "this was", "i love", "i loved", "i like", "i liked", "i enjoyed",
+    "we loved", "i don't like", "i didn't like", "i dont like", "i hate",
+    "rate", "don't suggest", "dont suggest", "never again", "delicious",
+    "my favorite", "my favourite", "favorite recipe", "what do i like",
+]
+# Kitchen equipment (declare/list/remove). Specific appliance names + "I have a"
+# phrasings; before add so "I've got a blender" isn't a pantry add. Bare common
+# words (oven/grill/microwave) are omitted here to avoid shadowing cook.
+# Flavor preferences (set/read/clear). The in-recipe "tone down the spice"
+# adjustment is handled inside cooking (not here). Before rate.
+FLAVOR_TRIGGERS = [
+    "we like it", "we prefer", "we like our food", "we like our meals",
+    "flavor preference", "flavour preference", "our flavor", "our flavour",
+    "spice level", "spice tolerance", "keep it mild", "keep it spicy",
+    "we like bold", "we like mild", "we don't like it too", "we dont like it too",
+    "we like things", "our spice",
+]
+EQUIPMENT_TRIGGERS = [
+    "equipment", "appliance", "blender", "food processor", "slow cooker",
+    "crockpot", "crock pot", "air fryer", "pressure cooker", "instant pot",
+    "waffle iron", "stand mixer",
+    # trailing space so "i have a " matches "I have a blender" but not
+    # "do I have any spinach" (the router pads the text with spaces).
+    "i have a ", "i have an ", "i've got a ", "ive got a ",
+    "i don't have a ", "i dont have a ",
+]
 LIST_TRIGGERS = [
     "what do i have", "what have i got", "what's in my", "whats in my",
     "what do i have left", "what's in stock", "whats in stock",
@@ -78,6 +115,14 @@ def classify(text: str) -> str:
         return "plan"
     if any(k in t for k in GROCERY_TRIGGERS):
         return "grocery"
+    if any(k in t for k in DIETARY_TRIGGERS):
+        return "dietary"
+    if any(k in t for k in FLAVOR_TRIGGERS):
+        return "flavor"
+    if any(k in t for k in RATE_TRIGGERS):
+        return "rate"
+    if any(k in t for k in EQUIPMENT_TRIGGERS):
+        return "equipment"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):
