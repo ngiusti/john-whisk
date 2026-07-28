@@ -1,6 +1,6 @@
 import re
 
-from john_whisk import llm
+from john_whisk import llm, inventory
 
 # Lead-in phrases before the dish name in a "let's make X" utterance.
 # Normalized (letters/digits/space only) so contractions match after the same
@@ -34,6 +34,19 @@ _RECIPES_QUERY = [
     "what are we cooking", "what recipes", "which recipes",
     "what am i working on",
 ]
+# Phrases (WHILE cooking) that precede a missing ingredient the cook wants to
+# swap. Longest-ending match wins (best_end) so the ingredient is what's left.
+_SUBSTITUTION_LEADINS = [
+    "what can i use instead of", "what can i use in place of",
+    "what can i substitute for", "what do i use instead of", "instead of",
+    "in place of", "a substitute for", "substitute for", "substitution for",
+    "replacement for", "replace the", "sub for", "swap out the", "swap for",
+    "i don t have any", "i don t have", "don t have any", "don t have",
+    "dont have", "do not have", "i m out of", "im out of", "i am out of",
+    "we re out of", "out of", "ran out of", "no more", "i have no",
+]
+_SUBSTITUTION_FILLERS = {"the", "a", "an", "any", "some", "my", "of", "more",
+                         "left", "got"}
 
 
 def dish_from_text(text: str) -> str:
@@ -196,6 +209,25 @@ def _is_cook_request(text: str) -> bool:
     return any(k in _normalize(text) for k in _ENQUEUE_LEADINS)
 
 
+def _is_substitution(text: str) -> bool:
+    return any(k in _normalize(text) for k in _SUBSTITUTION_LEADINS)
+
+
+def parse_substitution_ingredient(text: str) -> str:
+    """Pull the missing ingredient out of a substitution request,
+    deterministically (no LLM). Strips the longest-ending lead-in, drops
+    fillers; returns the ingredient (possibly multiword) or ""."""
+    t = _normalize(text)
+    best_end = -1
+    for lead in _SUBSTITUTION_LEADINS:
+        idx = t.find(lead)
+        if idx != -1 and idx + len(lead) > best_end:
+            best_end = idx + len(lead)
+    tail = t[best_end:].strip() if best_end != -1 else t
+    words = [w for w in tail.split() if w not in _SUBSTITUTION_FILLERS]
+    return " ".join(words).strip()
+
+
 def _join_names(names) -> str:
     if len(names) == 1:
         return names[0]
@@ -240,12 +272,18 @@ class Kitchen:
         return closing
 
     def navigate(self, text: str) -> str:
-        """One in-recipe turn: cancel-all, enqueue-another, or step navigation
-        (advancing the queue when the current recipe ends)."""
+        """One in-recipe turn: cancel-all, enqueue-another, substitution, or step
+        navigation (advancing the queue when the current recipe ends)."""
         if _is_cancel_all(text):
             return self.cancel_all()
         if _is_cook_request(text):
             return self.begin(dish_from_text(text))
+        if _is_substitution(text):
+            ingredient = parse_substitution_ingredient(text)
+            if ingredient:
+                # pantry-grounded swap; stays on the current step
+                return inventory.substitute(self.current.title,
+                                            self.current.current(), ingredient)
         reply, session = navigate(self.current, text)
         if session is None:
             return self._advance_queue(reply)

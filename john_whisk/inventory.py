@@ -136,6 +136,15 @@ def remove_from_text(text: str) -> str:
     return "Okay, took " + _join(removed) + " off your list."
 
 
+def substitute(title: str, step: str, ingredient: str) -> str:
+    """Suggest a substitute for a missing ingredient, grounded in the real
+    pantry (so it prefers what the cook has). Never invents inventory."""
+    stock = db.get_inventory()
+    pantry = ", ".join(_format_item(i) for i in stock) if stock else "nothing yet"
+    return (llm.suggest_substitution(pantry, title, step, ingredient)
+            or "Sorry, I couldn't think of a substitute right now.")
+
+
 def ask_general(text: str) -> str:
     """General Q&A fallback, grounded with the real pantry so the model can't
     invent inventory even for phrasings that slip past the check intent."""
