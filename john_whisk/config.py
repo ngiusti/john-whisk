@@ -76,6 +76,10 @@ SYSTEM_PROMPT = (
 # --- Inventory (Phase 2) ---
 DB_PATH = os.path.join(HOME, "john-whisk/john_whisk.db")
 
+# --- Phone/web dashboard ---
+WEB_HOST = "0.0.0.0"        # bind to the LAN (home network only; no external exposure)
+WEB_PORT = 8080
+
 # --- Recipe store + importers (Phase 2) ---
 # Separate DB so the bulk recipe library is independent of pantry state.
 RECIPES_DB_PATH = os.path.join(HOME, "john-whisk/recipes.db")
