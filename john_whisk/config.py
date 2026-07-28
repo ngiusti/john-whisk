@@ -18,7 +18,7 @@ WHISPER_THREADS = 4
 
 # --- Ollama (LLM) ---
 OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2:3b"
+OLLAMA_MODEL = "llama3.2:1b"
 NUM_CTX = 2048        # MUST be set; default context OOMs the 3B on 4GB
 NUM_PREDICT = 200     # cap spoken reply length
 NUM_PREDICT_RECIPE = 600   # recipes are longer than a one-off spoken reply
@@ -31,7 +31,7 @@ PIPER_VOICE = os.path.join(HOME, "piper/voices/en_US-amy-medium.onnx")
 
 # --- Wake word (openWakeWord) ---
 # Prototype with built-in "hey_jarvis"; swap to the custom "Hey John Whisk" .onnx path.
-WAKE_MODEL = "hey_jarvis"
+WAKE_MODEL = os.path.join(HOME, "john-whisk/models/hey_john_whisk.onnx")
 WAKE_THRESHOLD = 0.5
 WAKE_INFERENCE_FRAMEWORK = "onnx"   # or "tflite" if onnxruntime unavailable
 
