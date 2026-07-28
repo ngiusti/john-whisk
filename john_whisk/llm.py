@@ -123,6 +123,33 @@ def suggest_recipe(pantry: str, request: str) -> str:
         return ""
 
 
+def suggest_substitution(pantry: str, title: str, step: str, ingredient: str) -> str:
+    """Suggest ONE substitute for a missing ingredient mid-recipe, grounded in
+    the pantry so it prefers something the cook already has. Returns '' on
+    failure. Mirrors suggest_recipe's Ollama call pattern."""
+    prompt = (
+        f"I am cooking {title} and currently on this step: \"{step}\". "
+        f"I don't have {ingredient}. Suggest ONE substitute I can use instead. "
+        f"My kitchen contains exactly these items: {pantry}. "
+        "Prefer a substitute from my items if one works; otherwise name a common "
+        "substitute and clearly say I would need to get it. Never claim I have "
+        "anything not on that list. Answer in one or two short spoken sentences."
+    )
+    payload = {
+        "model": config.OLLAMA_MODEL,
+        "prompt": prompt,
+        "system": config.SYSTEM_PROMPT,
+        "stream": False,
+        "options": {"num_ctx": config.NUM_CTX, "num_predict": config.NUM_PREDICT},
+    }
+    try:
+        r = requests.post(config.OLLAMA_URL, json=payload, timeout=config.OLLAMA_TIMEOUT)
+        r.raise_for_status()
+        return r.json().get("response", "").strip()
+    except (requests.RequestException, ValueError):
+        return ""
+
+
 def ask_in_recipe(title: str, step: str, question: str) -> str:
     """Answer a mid-recipe question with the current step as context, so the
     cook doesn't have to leave recipe mode to ask something."""

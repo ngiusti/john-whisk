@@ -30,8 +30,9 @@ PIPER_DIR = os.path.join(HOME, "piper")            # cwd so it finds espeak-ng-d
 PIPER_VOICE = os.path.join(HOME, "piper/voices/en_US-amy-medium.onnx")
 
 # --- Wake word (openWakeWord) ---
-# Prototype with built-in "hey_jarvis"; swap to the custom "Hey John Whisk" .onnx path.
-WAKE_MODEL = "hey_jarvis"
+# Custom-trained "Hey John Whisk" model (models/hey_john_whisk.onnx). To fall back
+# to the built-in prototype, set WAKE_MODEL = "hey_jarvis".
+WAKE_MODEL = os.path.join(HOME, "john-whisk/models/hey_john_whisk.onnx")
 WAKE_THRESHOLD = 0.5
 WAKE_INFERENCE_FRAMEWORK = "onnx"   # or "tflite" if onnxruntime unavailable
 
@@ -72,6 +73,14 @@ SYSTEM_PROMPT = (
 
 # --- Inventory (Phase 2) ---
 DB_PATH = os.path.join(HOME, "john-whisk/john_whisk.db")
+
+# --- Recipe store + importers (Phase 2) ---
+# Separate DB so the bulk recipe library is independent of pantry state.
+RECIPES_DB_PATH = os.path.join(HOME, "john-whisk/recipes.db")
+RECIPE_MATCH_THRESHOLD = 0.5      # min title similarity (0-1) for a stored-recipe hit
+IMPORT_USER_AGENT = "JohnWhiskRecipeImporter/1.0 (personal kitchen assistant)"
+IMPORT_RATE_LIMIT_S = 2.5         # seconds between requests when crawling a site
+IMPORT_MAX_RECIPES = 50           # cap per site crawl
 
 # Fixed category set — the LLM must pick from these so category queries are
 # reliable (everything saucy lands in "sauce", not scattered synonyms).

@@ -8,3 +8,6 @@ john_whisk.db
 models/*.bin
 models/*.onnx
 models/*.ppn
+config.py.bak
+remy.log
+recipes.db
