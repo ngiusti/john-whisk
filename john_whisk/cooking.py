@@ -1,6 +1,6 @@
 import re
 
-from john_whisk import llm, inventory, recipes, restrictions, ratings, equipment
+from john_whisk import llm, inventory, recipes, restrictions, ratings, equipment, flavor
 
 # Lead-in phrases before the dish name in a "let's make X" utterance.
 # Normalized (letters/digits/space only) so contractions match after the same
@@ -295,6 +295,9 @@ class Kitchen:
                 # pantry-grounded swap; stays on the current step
                 return inventory.substitute(self.current.title,
                                             self.current.current(), ingredient)
+        if flavor.is_adjust(text):
+            # live flavor-adjustment tip, grounded in the current step
+            return flavor.tip(self.current.title, self.current.current(), text)
         reply, session = navigate(self.current, text)
         if session is None:
             return self._advance_queue(reply)

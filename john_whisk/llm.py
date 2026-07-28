@@ -123,6 +123,30 @@ def suggest_recipe(pantry: str, request: str) -> str:
         return ""
 
 
+def flavor_advice(title: str, step: str, request: str, prefs: str = "") -> str:
+    """Practical mid-recipe flavor-adjustment tips, grounded in the recipe/step
+    (and saved flavor prefs). Returns '' on failure."""
+    prompt = (
+        f"I am cooking {title} and currently on this step: \"{step}\". {request} "
+        "Give me one or two quick, practical tips to adjust the flavor. "
+        + (f"Keep in mind we like our food {prefs}. " if prefs else "")
+        + "Answer in one or two short spoken sentences, plain text."
+    )
+    payload = {
+        "model": config.OLLAMA_MODEL,
+        "prompt": prompt,
+        "system": config.SYSTEM_PROMPT,
+        "stream": False,
+        "options": {"num_ctx": config.NUM_CTX, "num_predict": config.NUM_PREDICT},
+    }
+    try:
+        r = requests.post(config.OLLAMA_URL, json=payload, timeout=config.OLLAMA_TIMEOUT)
+        r.raise_for_status()
+        return r.json().get("response", "").strip()
+    except (requests.RequestException, ValueError):
+        return ""
+
+
 def suggest_substitution(pantry: str, title: str, step: str, ingredient: str) -> str:
     """Suggest ONE substitute for a missing ingredient mid-recipe, grounded in
     the pantry so it prefers something the cook already has. Returns '' on

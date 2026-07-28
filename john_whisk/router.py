@@ -43,6 +43,15 @@ RATE_TRIGGERS = [
 # Kitchen equipment (declare/list/remove). Specific appliance names + "I have a"
 # phrasings; before add so "I've got a blender" isn't a pantry add. Bare common
 # words (oven/grill/microwave) are omitted here to avoid shadowing cook.
+# Flavor preferences (set/read/clear). The in-recipe "tone down the spice"
+# adjustment is handled inside cooking (not here). Before rate.
+FLAVOR_TRIGGERS = [
+    "we like it", "we prefer", "we like our food", "we like our meals",
+    "flavor preference", "flavour preference", "our flavor", "our flavour",
+    "spice level", "spice tolerance", "keep it mild", "keep it spicy",
+    "we like bold", "we like mild", "we don't like it too", "we dont like it too",
+    "we like things", "our spice",
+]
 EQUIPMENT_TRIGGERS = [
     "equipment", "appliance", "blender", "food processor", "slow cooker",
     "crockpot", "crock pot", "air fryer", "pressure cooker", "instant pot",
@@ -108,6 +117,8 @@ def classify(text: str) -> str:
         return "grocery"
     if any(k in t for k in DIETARY_TRIGGERS):
         return "dietary"
+    if any(k in t for k in FLAVOR_TRIGGERS):
+        return "flavor"
     if any(k in t for k in RATE_TRIGGERS):
         return "rate"
     if any(k in t for k in EQUIPMENT_TRIGGERS):

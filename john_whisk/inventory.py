@@ -1,6 +1,6 @@
 import re
 
-from john_whisk import db, llm, restrictions, ratings, equipment
+from john_whisk import db, llm, restrictions, ratings, equipment, flavor
 
 # Lead-in phrases that precede the item(s) in a "we're out of X" utterance.
 # Stored already normalized (letters/digits/space only) so contractions like
@@ -162,5 +162,5 @@ def suggest(text: str) -> str:
     # Active dietary restrictions + learned likes/dislikes are prepended so the
     # model avoids restricted/disliked recipes and favors what you enjoy.
     request = (restrictions.prompt_clause() + ratings.preference_clause()
-               + equipment.prompt_clause() + text)
+               + equipment.prompt_clause() + flavor.prompt_clause() + text)
     return llm.suggest_recipe(stock_str, request) or "Sorry, my brain hiccupped. Try again."
