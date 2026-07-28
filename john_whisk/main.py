@@ -1,5 +1,5 @@
 import logging
-from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor
+from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
@@ -75,7 +75,7 @@ def main():
     log.info("John Whisk starting up")
     db.init_db()
     listener = wake.WakeListener()
-    tts.speak("John Whisk is ready.")    # spoken cue: you'll hear this when it's listening
+    tts.speak(persona.line("startup"))    # spoken cue: heard on startup
     print("John Whisk is listening. Say the wake word.", flush=True)
     kitchen = cooking.Kitchen()           # active recipe + queue, empty when not cooking
     hands_free = False                    # skip the wake word while cooking
@@ -88,17 +88,17 @@ def main():
                     log.info("hands-free timeout; recipe paused, waiting for wake word")
                     hands_free = False
                 else:
-                    tts.speak("I didn't catch that.")
+                    tts.speak(persona.line("miss"))
                 continue
             if not kitchen.active and not hands_free:
-                tts.speak("Let me see.")  # cue only for non-recipe turns (may be slow);
+                tts.speak(persona.line("ack"))  # cue only for non-recipe turns (may be slow);
                                           # in-recipe nav is instant, so stay quiet
             text = stt.transcribe(wav)
             log.info("heard: %s", text)
             print("heard:", text, flush=True)
             if not text.strip():
                 if not hands_free:
-                    tts.speak("I didn't catch that.")
+                    tts.speak(persona.line("miss"))
                 continue
             # noise guard while cooking hands-free: ignore anything that isn't a
             # nav command, a queue action, or the "what am I making" query
@@ -123,7 +123,7 @@ def main():
         except Exception:
             log.exception("turn failed")
             try:
-                tts.speak("Something went wrong, but I'm still here.")
+                tts.speak(persona.line("error"))
             except Exception:
                 log.exception("could not speak error")
 
