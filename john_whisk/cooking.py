@@ -1,6 +1,6 @@
 import re
 
-from john_whisk import llm, inventory
+from john_whisk import llm, inventory, recipes
 
 # Lead-in phrases before the dish name in a "let's make X" utterance.
 # Normalized (letters/digits/space only) so contractions match after the same
@@ -140,9 +140,10 @@ def opening(session) -> str:
 
 
 def start(dish: str):
-    """Generate a recipe and open a session. Returns (session, spoken reply),
-    with session None if no recipe could be made."""
-    recipe = llm.generate_recipe(dish)
+    """Open a session for a dish. Prefer a stored recipe (no LLM needed); fall
+    back to LLM generation on a miss. Returns (session, spoken reply), with
+    session None if no recipe could be made."""
+    recipe = recipes.find(dish) or llm.generate_recipe(dish)
     if not recipe:
         return None, "Sorry, I couldn't put a recipe together for that. Try another dish."
     session = CookingSession(recipe["title"], recipe["ingredients"], recipe["steps"])

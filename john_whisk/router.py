@@ -2,6 +2,14 @@ SUGGEST_TRIGGERS = [
     "what can i make", "what can i cook", "what should i", "suggest", "recipe",
     "what's for dinner", "whats for dinner", "ideas for dinner", "make with",
 ]
+# Questions about the STORED recipe library (answered from recipes.db, not the
+# LLM). Placed before cook/suggest/check so "do you have a recipe for X" queries
+# the library instead of the pantry, while "let's make X" stays a cook.
+RECIPE_QUERY_TRIGGERS = [
+    "do you have a recipe", "do we have a recipe", "got a recipe",
+    "is there a recipe", "do you know a recipe", "what recipes", "which recipes",
+    "how many recipes", "recipe for",
+]
 LIST_TRIGGERS = [
     "what do i have", "what have i got", "what's in my", "whats in my",
     "what do i have left", "what's in stock", "whats in stock",
@@ -35,9 +43,11 @@ ADD_TRIGGERS = [
 
 
 def classify(text: str) -> str:
-    """Return 'volume', 'cook', 'suggest', 'list', 'check', 'remove', 'add', or
-    'general'. Precedence:
-    volume -> cook -> suggest -> list -> check -> remove -> add -> general.
+    """Return 'volume', 'cook', 'recipe_query', 'suggest', 'list', 'check',
+    'remove', 'add', or 'general'. Precedence:
+    volume -> cook -> recipe_query -> suggest -> list -> check -> remove -> add
+    -> general. (cook before recipe_query so "start the recipe for X" cooks while
+    "do you have a recipe for X" queries the library;
     (cook before suggest so "let's make the omelette" starts a recipe while
     "what can I make" stays a browse; list before check so "what do I have"
     reads the whole pantry while "do I have milk" is a targeted lookup; check
@@ -48,6 +58,8 @@ def classify(text: str) -> str:
         return "volume"
     if any(k in t for k in COOK_TRIGGERS):
         return "cook"
+    if any(k in t for k in RECIPE_QUERY_TRIGGERS):
+        return "recipe_query"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):

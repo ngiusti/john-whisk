@@ -1,0 +1,90 @@
+[
+  {
+    "title": "Scrambled Eggs",
+    "ingredients": ["3 eggs", "1 tablespoon butter", "salt", "pepper"],
+    "instructions": [
+      "Crack the eggs into a bowl and whisk with a pinch of salt and pepper.",
+      "Melt the butter in a non-stick pan over medium-low heat.",
+      "Pour in the eggs and let them sit for a few seconds.",
+      "Gently stir with a spatula, folding the eggs until just set.",
+      "Take them off the heat while still slightly soft and serve."
+    ]
+  },
+  {
+    "title": "Grilled Cheese Sandwich",
+    "ingredients": ["2 slices bread", "2 slices cheese", "1 tablespoon butter"],
+    "instructions": [
+      "Butter one side of each slice of bread.",
+      "Place the cheese between the slices, buttered sides facing out.",
+      "Heat a pan over medium heat.",
+      "Cook the sandwich until golden, about 3 minutes per side, pressing gently.",
+      "Slice in half and serve warm."
+    ]
+  },
+  {
+    "title": "Basic Pancakes",
+    "ingredients": ["1 cup flour", "1 tablespoon sugar", "2 teaspoons baking powder", "1 cup milk", "1 egg", "2 tablespoons melted butter"],
+    "instructions": [
+      "Whisk the flour, sugar, and baking powder together in a bowl.",
+      "In another bowl, whisk the milk, egg, and melted butter.",
+      "Stir the wet ingredients into the dry until just combined; a few lumps are fine.",
+      "Heat a lightly greased pan over medium heat.",
+      "Pour a quarter cup of batter per pancake and cook until bubbles form on top.",
+      "Flip and cook another minute until golden, then serve."
+    ]
+  },
+  {
+    "title": "Spaghetti with Tomato Sauce",
+    "ingredients": ["200 grams spaghetti", "1 can crushed tomatoes", "2 cloves garlic", "2 tablespoons olive oil", "salt", "basil"],
+    "instructions": [
+      "Bring a large pot of salted water to a boil and cook the spaghetti until al dente.",
+      "Meanwhile, warm the olive oil in a pan and cook the minced garlic until fragrant.",
+      "Add the crushed tomatoes and a pinch of salt, and simmer for ten minutes.",
+      "Stir in torn basil at the end.",
+      "Drain the pasta and toss it with the sauce, then serve."
+    ]
+  },
+  {
+    "title": "Chicken Alfredo",
+    "ingredients": ["2 chicken breasts", "200 grams fettuccine", "1 cup cream", "half cup parmesan", "2 tablespoons butter", "salt", "pepper"],
+    "instructions": [
+      "Season the chicken with salt and pepper and cook in butter until done, then slice.",
+      "Cook the fettuccine in salted boiling water until al dente and drain.",
+      "In the same pan, warm the cream and melt in the parmesan to make a sauce.",
+      "Toss the pasta in the sauce and top with the sliced chicken.",
+      "Serve right away while hot."
+    ]
+  },
+  {
+    "title": "Guacamole",
+    "ingredients": ["2 ripe avocados", "1 lime", "quarter onion", "salt", "cilantro"],
+    "instructions": [
+      "Scoop the avocados into a bowl and mash to your preferred texture.",
+      "Finely chop the onion and cilantro and stir them in.",
+      "Squeeze in the lime juice and add salt to taste.",
+      "Mix well and serve with chips or on toast."
+    ]
+  },
+  {
+    "title": "Fried Rice",
+    "ingredients": ["2 cups cooked rice", "2 eggs", "1 cup mixed vegetables", "2 tablespoons soy sauce", "2 green onions", "1 tablespoon oil"],
+    "instructions": [
+      "Heat the oil in a large pan or wok over high heat.",
+      "Scramble the eggs in the pan, then push them to one side.",
+      "Add the vegetables and cook for a couple of minutes.",
+      "Add the cold cooked rice and the soy sauce, stirring to combine and heat through.",
+      "Top with sliced green onions and serve."
+    ]
+  },
+  {
+    "title": "Tomato Soup",
+    "ingredients": ["1 can crushed tomatoes", "1 cup broth", "quarter cup cream", "1 onion", "1 tablespoon butter", "salt", "pepper"],
+    "instructions": [
+      "Melt the butter in a pot and cook the chopped onion until soft.",
+      "Add the crushed tomatoes and broth and simmer for fifteen minutes.",
+      "Blend the soup until smooth.",
+      "Stir in the cream and season with salt and pepper.",
+      "Warm through and serve."
+    ]
+  }
+]
