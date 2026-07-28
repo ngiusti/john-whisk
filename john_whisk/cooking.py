@@ -10,9 +10,30 @@ _COOK_LEADINS = [
     "guide me through", "start the recipe for", "start the recipe",
     "start cooking", "how do i make", "how do you make", "how do i cook",
     "i want to make", "i d like to make", "help me make", "let s make",
-    "lets make", "let s cook", "lets cook", "make the", "cook the",
+    "lets make", "let s cook", "lets cook", "also make", "also cook",
+    "next make", "then make", "make the", "cook the",
 ]
 _DISH_FILLERS = {"the", "a", "an", "some", "me", "for"}
+
+# Conservative phrases that, WHILE a recipe is active, mean "queue another
+# recipe" (not a mid-recipe question). Deliberately excludes bare "how do i
+# make ..." so "how do I make it fluffier" stays a question, not a new recipe.
+_ENQUEUE_LEADINS = [
+    "let s also make", "let s also cook", "also make", "also cook",
+    "let s make", "lets make", "let s cook", "lets cook", "next make",
+    "then make", "next let s make", "add a recipe", "queue up", "then cook",
+]
+# Explicit "clear the whole cooking session" phrases. Two-word "... all"
+# variants + "everything" so plain "stop" / "all done" are NOT caught here.
+_CANCEL_ALL = [
+    "everything", "all the recipe", "stop all", "cancel all", "clear all",
+    "forget all", "quit all", "all of them", "both recipes",
+]
+_RECIPES_QUERY = [
+    "what am i making", "what am i cooking", "what are we making",
+    "what are we cooking", "what recipes", "which recipes",
+    "what am i working on",
+]
 
 
 def dish_from_text(text: str) -> str:
@@ -120,7 +141,7 @@ def navigate(session, text):
     is None once the recipe has ended."""
     nav = classify_nav(text)
     if nav == "stop":
-        return "Okay, stopping the recipe.", None
+        return f"Okay, stopping the {session.title}.", None
     if nav == "next":
         if session.advance():
             return _say_step(session), session
@@ -147,3 +168,99 @@ def navigate(session, text):
     # unknown -> answer the question but stay in the recipe
     context = session.current() if session.started else session.ingredients
     return llm.ask_in_recipe(session.title, context, text), session
+
+
+def _normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s]", " ", text.lower())).strip()
+
+
+def next_up(session) -> str:
+    """The hand-off line spoken when a queued recipe becomes current (waits for
+    'next' before the first step, like a fresh recipe does)."""
+    line = f"Next up is {session.title}."
+    if session.ingredients:
+        line += f" You'll need: {session.ingredients}."
+    return line + " Say next when you're ready."
+
+
+def is_recipes_query(text: str) -> bool:
+    """True for "what recipes am I making right now" and kin (works anytime)."""
+    return any(k in _normalize(text) for k in _RECIPES_QUERY)
+
+
+def _is_cancel_all(text: str) -> bool:
+    return any(k in _normalize(text) for k in _CANCEL_ALL)
+
+
+def _is_cook_request(text: str) -> bool:
+    return any(k in _normalize(text) for k in _ENQUEUE_LEADINS)
+
+
+def _join_names(names) -> str:
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return names[0] + " and " + names[1]
+    return ", ".join(names[:-1]) + ", and " + names[-1]
+
+
+class Kitchen:
+    """Owns the active recipe plus a queue of dish names waiting their turn, so
+    the cook works through one recipe at a time and then the next. Orchestrates
+    the unchanged CookingSession / start / navigate mechanics."""
+
+    def __init__(self):
+        self.current = None      # active CookingSession, or None
+        self.queue = []          # dish-name strings not yet started
+
+    @property
+    def active(self) -> bool:
+        return self.current is not None
+
+    def begin(self, dish: str) -> str:
+        """Start `dish` now if idle, else queue it behind the current recipe."""
+        if self.active:
+            self.queue.append(dish)
+            return f"Okay, I'll make {dish} after the {self.current.title}."
+        session, reply = start(dish)
+        self.current = session   # None if generation failed; reply explains
+        return reply
+
+    def _advance_queue(self, closing: str) -> str:
+        """The current recipe just ended. Announce the next generatable queued
+        recipe (waiting for 'next'), skipping any that fail; else go idle."""
+        while self.queue:
+            dish = self.queue.pop(0)
+            session, _ = start(dish)
+            if session:
+                self.current = session
+                return closing + " " + next_up(session)
+            closing += f" I couldn't put together a recipe for {dish}, so I'll skip it."
+        self.current = None
+        return closing
+
+    def navigate(self, text: str) -> str:
+        """One in-recipe turn: cancel-all, enqueue-another, or step navigation
+        (advancing the queue when the current recipe ends)."""
+        if _is_cancel_all(text):
+            return self.cancel_all()
+        if _is_cook_request(text):
+            return self.begin(dish_from_text(text))
+        reply, session = navigate(self.current, text)
+        if session is None:
+            return self._advance_queue(reply)
+        self.current = session
+        return reply
+
+    def cancel_all(self) -> str:
+        self.current = None
+        self.queue = []
+        return "Okay, I've cleared all the recipes."
+
+    def summary(self) -> str:
+        if not self.active:
+            return "You're not making anything right now."
+        s = f"You're making {self.current.title} right now"
+        if self.queue:
+            s += ", with " + _join_names(self.queue) + " up next"
+        return s + "."
