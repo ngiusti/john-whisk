@@ -19,3 +19,14 @@ def spoken_wav(tmp_path_factory):
         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     return out
+
+
+@pytest.fixture(autouse=True)
+def _isolate_recipes_db(tmp_path, monkeypatch):
+    """Point the recipe store at a fresh empty temp DB for every test, so
+    cooking.start lookups meant to hit the mocked LLM don't accidentally match
+    the seeded on-device library. Tests that need recipe content monkeypatch
+    RECIPES_DB_PATH themselves (that override runs after this and wins).
+    DB_PATH is intentionally left alone (test_config checks its real value;
+    inventory tests set it themselves)."""
+    monkeypatch.setattr(config, "RECIPES_DB_PATH", str(tmp_path / "recipes.db"), raising=False)
