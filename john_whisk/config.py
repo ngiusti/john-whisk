@@ -27,7 +27,7 @@ OLLAMA_TIMEOUT = 60   # seconds
 # --- Piper (text-to-speech) ---
 PIPER_BIN = os.path.join(HOME, "piper/piper")
 PIPER_DIR = os.path.join(HOME, "piper")            # cwd so it finds espeak-ng-data
-PIPER_VOICE = os.path.join(HOME, "piper/voices/en_US-amy-medium.onnx")
+PIPER_VOICE = os.path.join(HOME, "piper/voices/en_GB-alan-medium.onnx")
 
 # --- Wake word (openWakeWord) ---
 # Custom-trained "Hey John Whisk" model (models/hey_john_whisk.onnx). To fall back
@@ -60,8 +60,10 @@ LOG_FILE = os.path.join(HOME, "john-whisk/john_whisk.log")
 
 # --- LLM persona ---
 SYSTEM_PROMPT = (
-    "You are John Whisk, a friendly, concise kitchen assistant speaking out loud to a "
-    "cook. Answer in 1-3 short spoken sentences. Use plain conversational text only: no "
+    "You are John Whisk, a calm, dry-witted, unflappable kitchen assistant speaking out "
+    "loud to a cook. You treat cooking like a professional handling a job: terse, "
+    "confident, a little deadpan, never fussy or bubbly. "
+    "Answer in 1-3 short spoken sentences. Use plain conversational text only: no "
     "markdown, no bullet points, no numbered lists, no emoji. If asked for a recipe, "
     "give a quick spoken summary, not a full written recipe. "
     "IMPORTANT: You do NOT know what food is in the user's kitchen, fridge, or pantry "
