@@ -30,8 +30,9 @@ PIPER_DIR = os.path.join(HOME, "piper")            # cwd so it finds espeak-ng-d
 PIPER_VOICE = os.path.join(HOME, "piper/voices/en_US-amy-medium.onnx")
 
 # --- Wake word (openWakeWord) ---
-# Prototype with built-in "hey_jarvis"; swap to the custom "Hey John Whisk" .onnx path.
-WAKE_MODEL = "hey_jarvis"
+# Custom-trained "Hey John Whisk" model (models/hey_john_whisk.onnx). To fall back
+# to the built-in prototype, set WAKE_MODEL = "hey_jarvis".
+WAKE_MODEL = os.path.join(HOME, "john-whisk/models/hey_john_whisk.onnx")
 WAKE_THRESHOLD = 0.5
 WAKE_INFERENCE_FRAMEWORK = "onnx"   # or "tflite" if onnxruntime unavailable
 
