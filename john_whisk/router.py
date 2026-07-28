@@ -32,6 +32,14 @@ DIETARY_TRIGGERS = [
     "my restriction", "my restrictions", "dietary", "restriction", "i can eat",
     "not allergic",
 ]
+# Rate a cooked recipe / query favorites. After cook + plan so "let's make X" and
+# "I would like to make X" aren't caught; before suggest.
+RATE_TRIGGERS = [
+    "that was", "this was", "i love", "i loved", "i like", "i liked", "i enjoyed",
+    "we loved", "i don't like", "i didn't like", "i dont like", "i hate",
+    "rate", "don't suggest", "dont suggest", "never again", "delicious",
+    "my favorite", "my favourite", "favorite recipe", "what do i like",
+]
 LIST_TRIGGERS = [
     "what do i have", "what have i got", "what's in my", "whats in my",
     "what do i have left", "what's in stock", "whats in stock",
@@ -88,6 +96,8 @@ def classify(text: str) -> str:
         return "grocery"
     if any(k in t for k in DIETARY_TRIGGERS):
         return "dietary"
+    if any(k in t for k in RATE_TRIGGERS):
+        return "rate"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):
