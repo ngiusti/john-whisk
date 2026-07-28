@@ -165,5 +165,11 @@ def extract_items(text: str):
         unit = it.get("unit")
         if not isinstance(unit, str) or not unit.strip():
             unit = None
-        result.append({"name": name.strip().lower(), "quantity": qty, "unit": unit})
+        category = it.get("category")
+        if not isinstance(category, str) or category.strip().lower() not in config.CATEGORIES:
+            category = "other"
+        else:
+            category = category.strip().lower()
+        result.append({"name": name.strip().lower(), "quantity": qty, "unit": unit,
+                       "category": category})
     return result

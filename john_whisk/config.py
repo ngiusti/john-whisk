@@ -73,16 +73,31 @@ SYSTEM_PROMPT = (
 # --- Inventory (Phase 2) ---
 DB_PATH = os.path.join(HOME, "john-whisk/john_whisk.db")
 
+# Fixed category set — the LLM must pick from these so category queries are
+# reliable (everything saucy lands in "sauce", not scattered synonyms).
+CATEGORIES = [
+    "sauce", "pasta", "vegetable", "fruit", "protein", "dairy", "grain",
+    "spice", "condiment", "beverage", "baking", "oil", "legume", "nuts",
+    "herb", "other",
+]
+
 EXTRACT_PROMPT = (
     "The user just told you which groceries they bought. Extract each food item they "
     "mention. Respond with ONLY JSON of the form "
     '{"items": [{"name": <singular lowercase string>, "quantity": <number or null>, '
-    '"unit": <string or null>}]}. '
+    '"unit": <string or null>, "category": <one category string>}]}. '
     "Set quantity to null UNLESS the user explicitly says a number for that item. "
     "Never invent, guess, or default a quantity. "
     'Examples: "chicken and eggs" -> both quantity null; "a dozen eggs" -> eggs quantity 12; '
     '"2 bacon" -> bacon quantity 2; "some spinach" -> spinach quantity null. '
     "Convert number words to digits (a dozen = 12, a couple = 2, a few = 3, half a dozen = 6). "
+    "For category, choose EXACTLY ONE from this list and nothing else: "
+    "sauce, pasta, vegetable, fruit, protein, dairy, grain, spice, condiment, beverage, "
+    "baking, oil, legume, nuts, herb, other. Use protein for meat/fish/eggs/tofu, grain "
+    "for bread/rice/cereal, spice for dried seasonings, herb for fresh herbs, oil for oils "
+    "and fats, and other if nothing fits. "
+    'Examples: marinara -> sauce; penne -> pasta; chicken -> protein; spinach -> vegetable; '
+    'ketchup -> condiment; flour -> baking; olive oil -> oil; black beans -> legume. '
     "Only extract items the user explicitly says they bought or have. If the text is a "
     'question, a request, or does not clearly list groceries, return {"items": []}. '
     "Never invent items that were not mentioned."
