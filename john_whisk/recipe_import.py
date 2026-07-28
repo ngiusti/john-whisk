@@ -57,7 +57,10 @@ def _instructions_to_steps(instr):
     if not instr:
         return []
     if isinstance(instr, str):
-        return [s.strip() for s in re.split(r"(?<=[.!?])\s+", instr.strip()) if s.strip()]
+        s = instr.strip()
+        if "\n" in s:                                   # newline-separated steps
+            return [ln.strip() for ln in s.splitlines() if ln.strip()]
+        return [x.strip() for x in re.split(r"(?<=[.!?])\s+", s) if x.strip()]
     steps = []
     if isinstance(instr, list):
         for item in instr:
@@ -137,6 +140,43 @@ def import_dataset(path):
             continue
         if recipes.add_recipe(title, ing, steps, source=r.get("source", "dataset")):
             added += 1
+    return added
+
+
+def import_themealdb():
+    """Import TheMealDB's free public catalog via its documented developer API
+    (intended for building recipe apps). Iterates the a-z listing, which returns
+    full recipes. Returns count added. Rate-limited between letters."""
+    added, seen = 0, set()
+    for ch in "abcdefghijklmnopqrstuvwxyz":
+        try:
+            r = requests.get(
+                f"https://www.themealdb.com/api/json/v1/1/search.php?f={ch}",
+                headers={"User-Agent": config.IMPORT_USER_AGENT}, timeout=20)
+            meals = (r.json() or {}).get("meals") or []
+        except (requests.RequestException, ValueError):
+            meals = []
+        for m in meals:
+            mid = m.get("idMeal")
+            if mid in seen:
+                continue
+            seen.add(mid)
+            title = m.get("strMeal")
+            if not title:
+                continue
+            ingredients = []
+            for i in range(1, 21):
+                name = (m.get(f"strIngredient{i}") or "").strip()
+                measure = (m.get(f"strMeasure{i}") or "").strip()
+                if name:
+                    ingredients.append((measure + " " + name).strip())
+            steps = _instructions_to_steps(m.get("strInstructions"))
+            if not steps:
+                continue
+            if recipes.add_recipe(title, ingredients, steps,
+                                  source=m.get("strSource") or "themealdb.com"):
+                added += 1
+        time.sleep(config.IMPORT_RATE_LIMIT_S)
     return added
 
 
