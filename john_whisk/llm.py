@@ -185,6 +185,35 @@ def ask_in_recipe(title: str, step: str, question: str) -> str:
     return ask(prompt)
 
 
+def estimate_nutrition(food_text):
+    """Ask the LLM to estimate {calories, protein, carbs, fat} (all floats) for a
+    food/amount the local table can't cover. Returns None on failure or if any
+    field is missing/non-numeric. Numbers are rough estimates."""
+    if not food_text or not food_text.strip():
+        return None
+    payload = {
+        "model": config.OLLAMA_MODEL,
+        "prompt": food_text,
+        "system": config.NUTRITION_ESTIMATE_PROMPT,
+        "stream": False,
+        "format": "json",
+        "options": {"num_ctx": config.NUM_CTX, "num_predict": config.NUM_PREDICT},
+    }
+    try:
+        r = requests.post(config.OLLAMA_URL, json=payload, timeout=config.OLLAMA_TIMEOUT)
+        r.raise_for_status()
+        data = json.loads(r.json().get("response", ""))
+    except (requests.RequestException, ValueError, TypeError):
+        return None
+    out = {}
+    for key in ("calories", "protein", "carbs", "fat"):
+        v = data.get(key)
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            return None
+        out[key] = float(v)
+    return out
+
+
 def extract_items(text: str):
     """Ask the LLM to extract grocery items+quantities as JSON. Returns a list of
     {name, quantity, unit} dicts (normalized), or [] on any failure."""

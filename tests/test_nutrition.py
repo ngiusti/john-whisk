@@ -87,3 +87,29 @@ def test_to_grams_generic_volume(tmp_path, monkeypatch):
 def test_to_grams_unconvertible(tmp_path, monkeypatch):
     _fixture_seed(tmp_path, monkeypatch)
     assert nutrition.to_grams(1, "pinch", "rice") is None
+
+
+from john_whisk import llm
+
+
+class _Resp:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return self._payload
+
+
+def test_estimate_nutrition_parses_json(monkeypatch):
+    monkeypatch.setattr(llm.requests, "post", lambda *a, **k: _Resp(
+        {"response": '{"calories": 200, "protein": 6, "carbs": 30, "fat": 5}'}))
+    out = llm.estimate_nutrition("one bagel")
+    assert out == {"calories": 200.0, "protein": 6.0, "carbs": 30.0, "fat": 5.0}
+
+
+def test_estimate_nutrition_failure_returns_none(monkeypatch):
+    monkeypatch.setattr(llm.requests, "post", lambda *a, **k: _Resp({"response": "nope"}))
+    assert llm.estimate_nutrition("one bagel") is None
