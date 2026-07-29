@@ -170,3 +170,16 @@ def test_for_recipe_default_servings(tmp_path, monkeypatch):
     recipe = {"title": "Rice", "ingredients": "4 cups rice", "steps": ["a"]}
     out = nutrition.for_recipe(recipe)          # no servings -> DEFAULT_SERVINGS
     assert out["per_serving"]["calories"] == pytest.approx(out["total"]["calories"] / 4, abs=0.5)
+
+
+def test_describe_sentence():
+    s = nutrition.describe({"calories": 620.4, "protein": 34, "carbs": 45, "fat": 32},
+                           per_serving=True)
+    assert "620 calories" in s and "a serving" in s
+    assert "34 g protein" in s and "45 g carbs" in s and "32 g fat" in s
+
+
+def test_describe_estimate_flag():
+    s = nutrition.describe({"calories": 200, "protein": 6, "carbs": 30, "fat": 5},
+                           per_serving=False, estimated=True)
+    assert "roughly" in s.lower() or "estimate" in s.lower()

@@ -246,3 +246,12 @@ def for_recipe(recipe, servings=None):
     per_serving = {m: round(total[m] / servings, 1) for m in _MACROS}
     return {"total": total, "per_serving": per_serving,
             "unmatched": unmatched, "estimated": bool(unmatched)}
+
+
+def describe(nutr, per_serving=True, estimated=False):
+    """A short spoken nutrition sentence from a macro dict."""
+    where = "a serving" if per_serving else "that"
+    lead = "Roughly " if estimated else "About "
+    return (f"{lead}{round(nutr['calories'])} calories {where}: "
+            f"{round(nutr['protein'])} g protein, {round(nutr['carbs'])} g carbs, "
+            f"{round(nutr['fat'])} g fat.")
