@@ -1,0 +1,22 @@
+[
+  {"name": "rice", "aliases": ["white rice", "cooked rice"], "per_100g": {"calories": 130, "protein": 2.7, "carbs": 28, "fat": 0.3}, "portions": {"cup": 158}},
+  {"name": "lentils", "aliases": ["lentil", "brown lentils", "red lentils"], "per_100g": {"calories": 116, "protein": 9, "carbs": 20, "fat": 0.4}, "portions": {"cup": 198}},
+  {"name": "pasta", "aliases": ["spaghetti", "penne", "macaroni", "noodles"], "per_100g": {"calories": 158, "protein": 6, "carbs": 31, "fat": 0.9}, "portions": {"cup": 140}},
+  {"name": "chicken", "aliases": ["chicken breast", "chicken thigh"], "per_100g": {"calories": 165, "protein": 31, "carbs": 0, "fat": 3.6}, "portions": {"cup": 140, "breast": 174}},
+  {"name": "egg", "aliases": ["eggs"], "per_100g": {"calories": 143, "protein": 12.6, "carbs": 0.7, "fat": 9.5}, "portions": {"each": 50, "large": 50, "medium": 44}},
+  {"name": "milk", "aliases": ["whole milk"], "per_100g": {"calories": 61, "protein": 3.2, "carbs": 4.8, "fat": 3.3}, "portions": {"cup": 244}},
+  {"name": "butter", "aliases": [], "per_100g": {"calories": 717, "protein": 0.9, "carbs": 0.1, "fat": 81}, "portions": {"cup": 227, "tablespoon": 14, "tbsp": 14, "stick": 113}},
+  {"name": "olive oil", "aliases": ["oil"], "per_100g": {"calories": 884, "protein": 0, "carbs": 0, "fat": 100}, "portions": {"cup": 216, "tablespoon": 14, "tbsp": 14, "teaspoon": 4.5, "tsp": 4.5}},
+  {"name": "flour", "aliases": ["all purpose flour", "wheat flour"], "per_100g": {"calories": 364, "protein": 10, "carbs": 76, "fat": 1}, "portions": {"cup": 120}},
+  {"name": "sugar", "aliases": ["white sugar", "granulated sugar"], "per_100g": {"calories": 387, "protein": 0, "carbs": 100, "fat": 0}, "portions": {"cup": 200, "tablespoon": 12, "tbsp": 12, "teaspoon": 4, "tsp": 4}},
+  {"name": "cream", "aliases": ["heavy cream"], "per_100g": {"calories": 340, "protein": 2.8, "carbs": 2.8, "fat": 36}, "portions": {"cup": 238, "tablespoon": 15, "tbsp": 15}},
+  {"name": "parmesan", "aliases": ["parmesan cheese"], "per_100g": {"calories": 431, "protein": 38, "carbs": 4, "fat": 29}, "portions": {"cup": 100, "tablespoon": 5, "tbsp": 5}},
+  {"name": "cheese", "aliases": ["cheddar", "mozzarella"], "per_100g": {"calories": 402, "protein": 25, "carbs": 1.3, "fat": 33}, "portions": {"cup": 113, "slice": 28}},
+  {"name": "onion", "aliases": ["onions"], "per_100g": {"calories": 40, "protein": 1.1, "carbs": 9.3, "fat": 0.1}, "portions": {"each": 110, "cup": 160}},
+  {"name": "tomato", "aliases": ["tomatoes"], "per_100g": {"calories": 18, "protein": 0.9, "carbs": 3.9, "fat": 0.2}, "portions": {"each": 123, "cup": 180}},
+  {"name": "potato", "aliases": ["potatoes"], "per_100g": {"calories": 77, "protein": 2, "carbs": 17, "fat": 0.1}, "portions": {"each": 173, "cup": 150}},
+  {"name": "banana", "aliases": ["bananas"], "per_100g": {"calories": 89, "protein": 1.1, "carbs": 23, "fat": 0.3}, "portions": {"each": 118, "cup": 150}},
+  {"name": "bread", "aliases": ["white bread", "toast"], "per_100g": {"calories": 265, "protein": 9, "carbs": 49, "fat": 3.2}, "portions": {"slice": 28, "each": 28}},
+  {"name": "chickpeas", "aliases": ["chickpea", "garbanzo"], "per_100g": {"calories": 164, "protein": 8.9, "carbs": 27, "fat": 2.6}, "portions": {"cup": 164, "can": 240}},
+  {"name": "beef", "aliases": ["ground beef"], "per_100g": {"calories": 250, "protein": 26, "carbs": 0, "fat": 15}, "portions": {"cup": 140}}
+]
