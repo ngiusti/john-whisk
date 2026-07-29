@@ -31,6 +31,10 @@ def init_db():
                    tags        TEXT,
                    added_at    TEXT NOT NULL)"""
         )
+        cols = {r[1] for r in c.execute("PRAGMA table_info(recipes)").fetchall()}
+        for col in ("cal", "protein", "carbs", "fat"):
+            if col not in cols:
+                c.execute(f"ALTER TABLE recipes ADD COLUMN {col} REAL")
         c.commit()
 
 
@@ -178,3 +182,28 @@ def answer_query(text: str) -> str:
         return "Yes, I've got " + _join([h["title"] for h in hits]) + "."
     return (f"No, I don't have a recipe for {dish} saved, "
             "but I can make one up if you'd like.")
+
+
+def get_nutrition(title):
+    """Cached per-serving macros for a recipe (by normalized title), or None if
+    not yet computed."""
+    init_db()
+    tn = _norm(title)
+    with contextlib.closing(_conn()) as c:
+        row = c.execute("SELECT cal, protein, carbs, fat FROM recipes "
+                        "WHERE title_norm = ?", (tn,)).fetchone()
+    if not row or row[0] is None:
+        return None
+    return {"calories": row[0], "protein": row[1], "carbs": row[2], "fat": row[3]}
+
+
+def set_nutrition(title, nutr):
+    """Cache per-serving macros on the recipe row (by normalized title)."""
+    init_db()
+    tn = _norm(title)
+    with contextlib.closing(_conn()) as c:
+        c.execute("UPDATE recipes SET cal = ?, protein = ?, carbs = ?, fat = ? "
+                  "WHERE title_norm = ?",
+                  (float(nutr["calories"]), float(nutr["protein"]),
+                   float(nutr["carbs"]), float(nutr["fat"]), tn))
+        c.commit()

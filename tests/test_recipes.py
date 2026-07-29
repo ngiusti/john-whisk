@@ -118,3 +118,13 @@ def test_cooking_start_falls_back_to_llm(tmp_path, monkeypatch):
                                    "steps": ["Bake.", "Slice."]})
     session, reply = cooking.start("pizza")
     assert session is not None and session.title == "pizza"
+
+
+def test_nutrition_cache_roundtrip(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    recipes.add_recipe(*ALFREDO)
+    assert recipes.get_nutrition("Chicken Alfredo") is None       # nothing cached yet
+    recipes.set_nutrition("Chicken Alfredo",
+                          {"calories": 620, "protein": 34, "carbs": 45, "fat": 32})
+    cached = recipes.get_nutrition("chicken alfredo")             # norm-title match
+    assert cached == {"calories": 620.0, "protein": 34.0, "carbs": 45.0, "fat": 32.0}
