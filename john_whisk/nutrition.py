@@ -98,3 +98,70 @@ def lookup(food):
             if kw and kw <= qw and len(kw) > best_len:
                 best, best_len = entry, len(kw)
     return best
+
+
+_FRACTIONS = {"½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3,
+              "⅔": 2 / 3, "⅛": 0.125, "⅜": 0.375, "⅝": 0.625,
+              "⅞": 0.875}
+_NUMWORDS = {"a": 1.0, "an": 1.0, "one": 1.0, "two": 2.0, "three": 3.0, "four": 4.0,
+             "five": 5.0, "six": 6.0, "seven": 7.0, "eight": 8.0, "nine": 9.0,
+             "ten": 10.0, "dozen": 12.0, "half": 0.5}
+# canonical unit -> the token spellings that map to it
+_UNIT_ALIASES = {
+    "cup": ["cup", "cups"], "tablespoon": ["tablespoon", "tablespoons", "tbsp"],
+    "teaspoon": ["teaspoon", "teaspoons", "tsp"], "ounce": ["ounce", "ounces", "oz"],
+    "pound": ["pound", "pounds", "lb", "lbs"], "gram": ["gram", "grams", "g"],
+    "kilogram": ["kilogram", "kilograms", "kg"], "ml": ["ml", "milliliter", "milliliters"],
+    "liter": ["liter", "liters", "litre", "litres", "l"], "pint": ["pint", "pints"],
+    "quart": ["quart", "quarts"], "clove": ["clove", "cloves"], "slice": ["slice", "slices"],
+    "can": ["can", "cans"], "stick": ["stick", "sticks"], "large": ["large"],
+    "medium": ["medium"], "small": ["small"], "pinch": ["pinch", "pinches"],
+    "breast": ["breast", "breasts"],
+}
+_UNIT_OF = {tok: canon for canon, toks in _UNIT_ALIASES.items() for tok in toks}
+
+
+def _leading_number(tokens):
+    """Consume a leading quantity (digits, fractions, unicode fractions, mixed
+    numbers, or a number word). Returns (qty_or_None, remaining_tokens)."""
+    if not tokens:
+        return None, tokens
+    t0 = tokens[0]
+    # unicode fraction possibly glued to a number, e.g. "1½"
+    for gl, val in _FRACTIONS.items():
+        if t0.endswith(gl):
+            whole = t0[:-len(gl)]
+            base = float(whole) if whole.replace(".", "", 1).isdigit() else 0.0
+            return base + val, tokens[1:]
+    if re.fullmatch(r"\d+/\d+", t0):
+        n, d = t0.split("/")
+        return int(n) / int(d), tokens[1:]
+    if re.fullmatch(r"\d+(\.\d+)?", t0):
+        val = float(t0)
+        if len(tokens) > 1 and re.fullmatch(r"\d+/\d+", tokens[1]):   # mixed "1 1/2"
+            n, d = tokens[1].split("/")
+            return val + int(n) / int(d), tokens[2:]
+        return val, tokens[1:]
+    if t0 in _NUMWORDS:
+        return _NUMWORDS[t0], tokens[1:]
+    return None, tokens
+
+
+def parse_ingredient(line):
+    """Parse "1 cup uncooked rice" -> (1.0, "cup", "uncooked rice"). Returns
+    (quantity|None, unit|None, food). When no quantity is present the whole line
+    is the food (unit None)."""
+    raw = re.sub(r"\s+", " ", (line or "").strip().lower())
+    if not raw:
+        return None, None, ""
+    tokens = raw.split()
+    qty, rest = _leading_number(tokens)
+    if qty is None:
+        return None, None, raw                       # no leading number: all food
+    unit = None
+    if rest and rest[0] in _UNIT_OF:
+        unit = _UNIT_OF[rest[0]]
+        rest = rest[1:]
+        if rest and rest[0] == "of":                 # "a pinch of salt"
+            rest = rest[1:]
+    return qty, unit, " ".join(rest)
