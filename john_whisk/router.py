@@ -10,6 +10,12 @@ RECIPE_QUERY_TRIGGERS = [
     "is there a recipe", "do you know a recipe", "what recipes", "which recipes",
     "how many recipes", "recipe for",
 ]
+# Nutrition questions about a recipe or food. After recipe_query (so "how many
+# recipes" stays a library query) and after cook; before general.
+NUTRITION_QUERY_TRIGGERS = [
+    "calories", "macros", "how much protein", "how much fat", "how many carbs",
+    "nutrition", "nutritional",
+]
 # Plan a meal: find the recipe and add MISSING ingredients to the grocery list
 # (does not start cooking). Distinct from cook ("let's make X") — these are
 # desire/intent phrasings the router's cook triggers don't cover.
@@ -111,6 +117,8 @@ def classify(text: str) -> str:
         return "cook"
     if any(k in t for k in RECIPE_QUERY_TRIGGERS):
         return "recipe_query"
+    if any(k in t for k in NUTRITION_QUERY_TRIGGERS):
+        return "nutrition_query"
     if any(k in t for k in PLAN_TRIGGERS):
         return "plan"
     if any(k in t for k in GROCERY_TRIGGERS):

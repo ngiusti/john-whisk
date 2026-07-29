@@ -255,3 +255,50 @@ def describe(nutr, per_serving=True, estimated=False):
     return (f"{lead}{round(nutr['calories'])} calories {where}: "
             f"{round(nutr['protein'])} g protein, {round(nutr['carbs'])} g carbs, "
             f"{round(nutr['fat'])} g fat.")
+
+
+_QUERY_LEADINS = [
+    "how many calories are in", "how many calories in", "how much protein in",
+    "how much fat in", "how many carbs in", "how many carbs are in",
+    "calories in", "macros in", "macros for", "nutrition in", "nutrition for",
+    "nutrition facts for", "calories for", "how many calories does", "in",
+]
+
+
+def _subject(text):
+    t = _norm(text)
+    end = -1
+    for lead in sorted(_QUERY_LEADINS, key=len, reverse=True):
+        idx = t.find(lead)
+        if idx != -1:
+            end = max(end, idx + len(lead))
+    subj = t[end:].strip() if end != -1 else t
+    return re.sub(r"\b(have|do|does|are|is|there|the|a|an)\b", " ", subj).strip() \
+        if end == -1 else subj
+
+
+def answer_query(text):
+    """Answer "calories/macros in X" for a stored recipe (per serving, cached) or
+    an ad-hoc food. Returns a spoken sentence."""
+    from john_whisk import recipes
+    subject = _subject(text)
+    if not subject:
+        return "Which food or recipe do you want the nutrition for?"
+    recipe = recipes.find(subject)
+    if recipe:
+        cached = recipes.get_nutrition(recipe["title"])
+        if cached:
+            return f"{recipe['title']}: " + describe(cached, per_serving=True)
+        result = for_recipe(recipe)
+        recipes.set_nutrition(recipe["title"], result["per_serving"])
+        msg = f"{recipe['title']}: " + describe(
+            result["per_serving"], per_serving=True, estimated=result["estimated"])
+        if result["unmatched"]:
+            msg += f" I couldn't score {len(result['unmatched'])} ingredient" \
+                   f"{'s' if len(result['unmatched']) != 1 else ''}."
+        return msg
+    qty, unit, food = parse_ingredient(subject)
+    out = for_food(qty, unit, food)
+    if out is None:
+        return f"I couldn't find nutrition for {subject}."
+    return describe(out, per_serving=False, estimated=out["estimated"])

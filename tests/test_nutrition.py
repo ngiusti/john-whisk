@@ -183,3 +183,20 @@ def test_describe_estimate_flag():
     s = nutrition.describe({"calories": 200, "protein": 6, "carbs": 30, "fat": 5},
                            per_serving=False, estimated=True)
     assert "roughly" in s.lower() or "estimate" in s.lower()
+
+
+def test_answer_query_stored_recipe(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    from john_whisk import recipes
+    monkeypatch.setattr(config, "RECIPES_DB_PATH", str(tmp_path / "r.db"))
+    recipes.add_recipe("Egg Rice", "2 eggs, 1 cup rice", ["a", "b"])
+    reply = nutrition.answer_query("how many calories in egg rice")
+    assert "calories" in reply.lower() and "serving" in reply.lower()
+    assert recipes.get_nutrition("Egg Rice") is not None          # cached on first ask
+
+
+def test_answer_query_ad_hoc_food(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    monkeypatch.setattr(config, "RECIPES_DB_PATH", str(tmp_path / "r.db"))
+    reply = nutrition.answer_query("how many calories in two eggs")
+    assert "143" in reply or "calories" in reply.lower()

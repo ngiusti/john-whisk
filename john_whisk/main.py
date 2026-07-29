@@ -1,5 +1,5 @@
 import logging
-from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona
+from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona, nutrition
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
@@ -21,6 +21,8 @@ def process_utterance(text, kitchen):
         return kitchen.begin(cooking.dish_from_text(text))
     if intent == "recipe_query":
         return recipes.answer_query(text)
+    if intent == "nutrition_query":
+        return nutrition.answer_query(text)
     if intent == "plan":
         return grocery.plan_meal(cooking.dish_from_text(text))
     if intent == "grocery":
