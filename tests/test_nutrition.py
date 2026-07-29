@@ -199,4 +199,4 @@ def test_answer_query_ad_hoc_food(tmp_path, monkeypatch):
     _fixture_seed(tmp_path, monkeypatch)
     monkeypatch.setattr(config, "RECIPES_DB_PATH", str(tmp_path / "r.db"))
     reply = nutrition.answer_query("how many calories in two eggs")
-    assert "143" in reply or "calories" in reply.lower()
+    assert "143" in reply

@@ -261,7 +261,7 @@ _QUERY_LEADINS = [
     "how many calories are in", "how many calories in", "how much protein in",
     "how much fat in", "how many carbs in", "how many carbs are in",
     "calories in", "macros in", "macros for", "nutrition in", "nutrition for",
-    "nutrition facts for", "calories for", "how many calories does", "in",
+    "nutrition facts for", "calories for", "how many calories does", " in ",
 ]
 
 
