@@ -62,13 +62,21 @@ def _row_to_recipe(row):
 
 
 def _similarity(query_norm, title_norm) -> float:
-    """Jaccard word overlap, with exact match forced to 1.0."""
+    """Title relevance in [0, 1]. A blend of Jaccard word overlap and query
+    coverage (fraction of the query words found in the title). Coverage lets a
+    short query fully contained in a longer descriptive title score above the
+    threshold — e.g. "basbousa" vs "Basbousa (Egyptian Semolina Cake)" — while
+    the Jaccard half still breaks ties toward the tighter title. A partial-query
+    match (e.g. 1 of 2 words) lands ~0.42, below the 0.5 threshold."""
     if query_norm == title_norm:
         return 1.0
     q, t = set(query_norm.split()), set(title_norm.split())
     if not q or not t:
         return 0.0
-    return len(q & t) / len(q | t)
+    inter = len(q & t)
+    jaccard = inter / len(q | t)
+    coverage = inter / len(q)          # fraction of the query found in the title
+    return 0.5 * jaccard + 0.5 * coverage
 
 
 def _scored(query):

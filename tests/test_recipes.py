@@ -46,6 +46,26 @@ def test_find_no_match_returns_none(tmp_path, monkeypatch):
     assert recipes.find("chicken soup") is None       # only 1 word overlap, not enough
 
 
+def test_find_short_query_in_descriptive_title(tmp_path, monkeypatch):
+    # Many imported titles are descriptive: "Basbousa (Egyptian Semolina Cake)".
+    # A short query naming the dish must still find it (query fully covered).
+    _fresh(tmp_path, monkeypatch)
+    recipes.add_recipe("Basbousa (Egyptian Semolina Cake)", "semolina, sugar",
+                       ["Mix.", "Bake.", "Soak in syrup."])
+    recipes.add_recipe(*ALFREDO)
+    r = recipes.find("basbousa")
+    assert r is not None and r["title"] == "Basbousa (Egyptian Semolina Cake)"
+    assert any("Basbousa" in h["title"] for h in recipes.search("basbousa"))
+
+
+def test_find_prefers_more_exact_among_containment(tmp_path, monkeypatch):
+    # When several titles fully contain the query, prefer the tighter match.
+    _fresh(tmp_path, monkeypatch)
+    recipes.add_recipe("Banana Bread III", "y", ["b"])           # tighter
+    recipes.add_recipe("Chocolate and Banana Bread", "x", ["a"])  # looser
+    assert recipes.find("banana bread")["title"] == "Banana Bread III"
+
+
 def test_find_returns_steps_as_list(tmp_path, monkeypatch):
     _fresh(tmp_path, monkeypatch)
     recipes.add_recipe(*ALFREDO)

@@ -84,7 +84,8 @@ WEB_PORT = 8080
 # Separate DB so the bulk recipe library is independent of pantry state.
 RECIPES_DB_PATH = os.path.join(HOME, "john-whisk/recipes.db")
 RECIPE_MATCH_THRESHOLD = 0.5      # min title similarity (0-1) for a stored-recipe hit
-IMPORT_USER_AGENT = "JohnWhiskRecipeImporter/1.0 (personal kitchen assistant)"
+IMPORT_USER_AGENT = ("JohnWhiskRecipeImporter/1.0 "
+                     "(https://github.com/ngiusti/john-whisk; personal kitchen assistant)")
 IMPORT_RATE_LIMIT_S = 2.5         # seconds between requests when crawling a site
 IMPORT_MAX_RECIPES = 50           # cap per site crawl
 
