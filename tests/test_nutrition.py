@@ -200,3 +200,22 @@ def test_answer_query_ad_hoc_food(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RECIPES_DB_PATH", str(tmp_path / "r.db"))
     reply = nutrition.answer_query("how many calories in two eggs")
     assert "143" in reply
+
+
+def test_for_food_bare_name_uses_table(tmp_path, monkeypatch):
+    # "calories in rice" (no quantity) must use the curated table (per-100g),
+    # not an LLM estimate.
+    _fixture_seed(tmp_path, monkeypatch)
+    out = nutrition.for_food(None, None, "rice")
+    assert out["calories"] == 130 and out["estimated"] is False
+
+
+def test_answer_query_recipe_cache_hit(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    from john_whisk import recipes
+    monkeypatch.setattr(config, "RECIPES_DB_PATH", str(tmp_path / "r.db"))
+    recipes.add_recipe("Egg Rice", "2 eggs, 1 cup rice", ["a", "b"])
+    nutrition.answer_query("calories in egg rice")            # computes + caches
+    recipes.set_nutrition("Egg Rice",                         # overwrite the cache
+                          {"calories": 999, "protein": 1, "carbs": 2, "fat": 3})
+    assert "999" in nutrition.answer_query("calories in egg rice")   # 2nd ask uses cache

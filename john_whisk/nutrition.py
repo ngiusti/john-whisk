@@ -207,6 +207,8 @@ def for_food(quantity, unit, food):
     an LLM estimate (estimated=True). Returns None if neither yields data."""
     entry = lookup(food)
     grams = to_grams(quantity, unit, food) if entry else None
+    if entry and grams is None and quantity is None:
+        grams = 100.0                      # bare food name -> per-100g from the table
     if entry and grams is not None:
         factor = grams / 100.0
         out = {m: round((entry["per_100g"].get(m) or 0.0) * factor, 1) for m in _MACROS}
@@ -290,7 +292,8 @@ def answer_query(text):
         if cached:
             return f"{recipe['title']}: " + describe(cached, per_serving=True)
         result = for_recipe(recipe)
-        recipes.set_nutrition(recipe["title"], result["per_serving"])
+        if any(result["per_serving"].values()):        # don't cache an all-zero result
+            recipes.set_nutrition(recipe["title"], result["per_serving"])
         msg = f"{recipe['title']}: " + describe(
             result["per_serving"], per_serving=True, estimated=result["estimated"])
         if result["unmatched"]:
