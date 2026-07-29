@@ -168,3 +168,30 @@ def parse_ingredient(line):
         if rest and rest[0] == "of":                 # "a pinch of salt"
             rest = rest[1:]
     return qty, unit, " ".join(rest)
+
+
+_MASS_G = {"gram": 1.0, "kilogram": 1000.0, "ounce": 28.35, "pound": 453.6}
+_VOL_APPROX_G = {"cup": 240.0, "tablespoon": 15.0, "teaspoon": 5.0, "ml": 1.0,
+                 "liter": 1000.0, "pint": 473.0, "quart": 946.0}
+
+
+def to_grams(quantity, unit, food):
+    """Best-effort conversion of quantity+unit of a food to grams, or None if it
+    can't be determined. Order: the food's own household portion, then direct
+    mass units, then a generic volume approximation. A bare count ("2 eggs")
+    uses the food's "each" portion."""
+    if quantity is None:
+        return None
+    portions = {}
+    entry = lookup(food)
+    if entry:
+        portions = {k.lower(): v for k, v in entry["portions"].items()}
+    if unit is None:
+        return quantity * portions["each"] if "each" in portions else None
+    if unit in portions:
+        return quantity * portions[unit]
+    if unit in _MASS_G:
+        return quantity * _MASS_G[unit]
+    if unit in _VOL_APPROX_G:
+        return quantity * _VOL_APPROX_G[unit]
+    return None

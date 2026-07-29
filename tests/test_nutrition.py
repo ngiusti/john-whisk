@@ -61,3 +61,29 @@ def test_parse_ingredient_zero_denominator_does_not_crash():
     assert nutrition.parse_ingredient("1/0 cup sugar") == (None, None, "1/0 cup sugar")
     # the integer is kept; the malformed fraction is left in the food text
     assert nutrition.parse_ingredient("1 1/0 cups flour") == (1.0, None, "1/0 cups flour")
+
+
+def test_to_grams_food_portion(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    assert nutrition.to_grams(1, "cup", "rice") == 158           # food's own portion
+
+
+def test_to_grams_count_each(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    assert nutrition.to_grams(2, None, "eggs") == 100            # 2 * each(50)
+
+
+def test_to_grams_mass_unit(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    assert nutrition.to_grams(200, "gram", "rice") == 200        # direct mass
+
+
+def test_to_grams_generic_volume(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    # no "tablespoon" portion for rice -> generic approximation (15 g)
+    assert nutrition.to_grams(2, "tablespoon", "rice") == 30
+
+
+def test_to_grams_unconvertible(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    assert nutrition.to_grams(1, "pinch", "rice") is None
