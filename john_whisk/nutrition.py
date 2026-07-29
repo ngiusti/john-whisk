@@ -219,3 +219,30 @@ def for_food(quantity, unit, food):
     out = {m: round(float(est.get(m, 0.0)), 1) for m in _MACROS}
     out["estimated"] = True
     return out
+
+
+def for_recipe(recipe, servings=None):
+    """Sum a recipe's ingredient nutrition from the LOCAL table. Returns
+    {total, per_serving, unmatched, estimated}. Ingredients the table can't
+    resolve are listed in `unmatched` (not sent to the LLM here); `estimated`
+    is True when anything was unmatched. `servings` defaults to
+    config.DEFAULT_SERVINGS."""
+    servings = servings or config.DEFAULT_SERVINGS
+    total, unmatched = _zero(), []
+    for ing in (recipe.get("ingredients") or "").split(","):
+        ing = ing.strip()
+        if not ing:
+            continue
+        qty, unit, food = parse_ingredient(ing)
+        entry = lookup(food)
+        grams = to_grams(qty, unit, food) if entry else None
+        if entry and grams is not None:
+            factor = grams / 100.0
+            for m in _MACROS:
+                total[m] += (entry["per_100g"].get(m) or 0.0) * factor
+        else:
+            unmatched.append(ing)
+    total = {m: round(total[m], 1) for m in _MACROS}
+    per_serving = {m: round(total[m] / servings, 1) for m in _MACROS}
+    return {"total": total, "per_serving": per_serving,
+            "unmatched": unmatched, "estimated": bool(unmatched)}

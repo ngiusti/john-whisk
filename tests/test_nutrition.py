@@ -141,3 +141,32 @@ def test_for_food_no_data_returns_none(tmp_path, monkeypatch):
     _fixture_seed(tmp_path, monkeypatch)
     monkeypatch.setattr(nutrition.llm, "estimate_nutrition", lambda text: None)
     assert nutrition.for_food(1, None, "unobtainium") is None
+
+
+def test_for_recipe_sums_and_divides(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    recipe = {"title": "Egg Rice", "ingredients": "2 eggs, 1 cup rice",
+              "steps": ["a", "b"]}
+    out = nutrition.for_recipe(recipe, servings=2)
+    # eggs: 100 g -> 143 cal ; rice: 158 g -> 130*1.58 = 205.4 cal ; total ~348.4
+    assert out["total"]["calories"] == pytest.approx(143 + 130 * 1.58, abs=0.5)
+    assert out["per_serving"]["calories"] == pytest.approx(out["total"]["calories"] / 2, abs=0.5)
+    assert out["unmatched"] == []
+    assert out["estimated"] is False
+
+
+def test_for_recipe_reports_unmatched(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    recipe = {"title": "Fancy", "ingredients": "1 cup rice, 1 pinch saffron",
+              "steps": ["a"]}
+    out = nutrition.for_recipe(recipe, servings=1)
+    assert "1 pinch saffron" in out["unmatched"]
+    assert out["estimated"] is True
+
+
+def test_for_recipe_default_servings(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    monkeypatch.setattr(config, "DEFAULT_SERVINGS", 4)
+    recipe = {"title": "Rice", "ingredients": "4 cups rice", "steps": ["a"]}
+    out = nutrition.for_recipe(recipe)          # no servings -> DEFAULT_SERVINGS
+    assert out["per_serving"]["calories"] == pytest.approx(out["total"]["calories"] / 4, abs=0.5)
