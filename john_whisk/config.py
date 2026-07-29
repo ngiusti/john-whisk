@@ -147,3 +147,13 @@ RECIPE_PROMPT = (
     "Use between 3 and 12 steps, one per line, each a single short sentence. "
     "No markdown, no extra commentary before or after the list."
 )
+
+# --- Nutrition (Phase 2) ---
+NUTRITION_SEED_PATH = os.path.join(HOME, "john-whisk/data/nutrition.json")
+DEFAULT_SERVINGS = 4          # assumed servings when a recipe states none
+NUTRITION_ESTIMATE_PROMPT = (
+    "Estimate the nutrition for the food described by the user. Respond with ONLY "
+    'JSON of the form {"calories": <number>, "protein": <grams>, "carbs": <grams>, '
+    '"fat": <grams>} for the ENTIRE amount described, using typical values. '
+    "Numbers only, no units in the values, and no text before or after the JSON."
+)
