@@ -195,3 +195,27 @@ def to_grams(quantity, unit, food):
     if unit in _VOL_APPROX_G:
         return quantity * _VOL_APPROX_G[unit]
     return None
+
+
+def _zero():
+    return {m: 0.0 for m in _MACROS}
+
+
+def for_food(quantity, unit, food):
+    """Nutrition for one food amount as {calories, protein, carbs, fat,
+    estimated}. Uses the local table + gram conversion when possible; otherwise
+    an LLM estimate (estimated=True). Returns None if neither yields data."""
+    entry = lookup(food)
+    grams = to_grams(quantity, unit, food) if entry else None
+    if entry and grams is not None:
+        factor = grams / 100.0
+        out = {m: round((entry["per_100g"].get(m) or 0.0) * factor, 1) for m in _MACROS}
+        out["estimated"] = False
+        return out
+    phrase = " ".join(str(x) for x in (quantity, unit, food) if x)
+    est = llm.estimate_nutrition(phrase)
+    if est is None:
+        return None
+    out = {m: round(float(est.get(m, 0.0)), 1) for m in _MACROS}
+    out["estimated"] = True
+    return out

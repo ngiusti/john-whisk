@@ -113,3 +113,31 @@ def test_estimate_nutrition_parses_json(monkeypatch):
 def test_estimate_nutrition_failure_returns_none(monkeypatch):
     monkeypatch.setattr(llm.requests, "post", lambda *a, **k: _Resp({"response": "nope"}))
     assert llm.estimate_nutrition("one bagel") is None
+
+
+def test_for_food_local(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    out = nutrition.for_food(2, None, "eggs")           # 100 g -> per_100g * 1.0
+    assert out["calories"] == 143 and out["protein"] == pytest.approx(12.6)
+    assert out["estimated"] is False
+
+
+def test_for_food_scales_by_grams(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    out = nutrition.for_food(1, "cup", "rice")          # 158 g -> 1.58 * per_100g
+    assert out["calories"] == pytest.approx(130 * 1.58)
+    assert out["estimated"] is False
+
+
+def test_for_food_falls_back_to_llm(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    monkeypatch.setattr(nutrition.llm, "estimate_nutrition",
+                        lambda text: {"calories": 250, "protein": 9, "carbs": 40, "fat": 6})
+    out = nutrition.for_food(1, None, "bagel")          # not in the table
+    assert out["calories"] == 250 and out["estimated"] is True
+
+
+def test_for_food_no_data_returns_none(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    monkeypatch.setattr(nutrition.llm, "estimate_nutrition", lambda text: None)
+    assert nutrition.for_food(1, None, "unobtainium") is None
