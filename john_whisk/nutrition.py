@@ -135,12 +135,15 @@ def _leading_number(tokens):
             return base + val, tokens[1:]
     if re.fullmatch(r"\d+/\d+", t0):
         n, d = t0.split("/")
-        return int(n) / int(d), tokens[1:]
+        if int(d) != 0:
+            return int(n) / int(d), tokens[1:]
+        return None, tokens                          # malformed "n/0": not a quantity
     if re.fullmatch(r"\d+(\.\d+)?", t0):
         val = float(t0)
         if len(tokens) > 1 and re.fullmatch(r"\d+/\d+", tokens[1]):   # mixed "1 1/2"
             n, d = tokens[1].split("/")
-            return val + int(n) / int(d), tokens[2:]
+            if int(d) != 0:
+                return val + int(n) / int(d), tokens[2:]
         return val, tokens[1:]
     if t0 in _NUMWORDS:
         return _NUMWORDS[t0], tokens[1:]

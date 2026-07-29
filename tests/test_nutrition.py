@@ -54,3 +54,10 @@ import pytest
 ])
 def test_parse_ingredient(line, qty, unit, food):
     assert nutrition.parse_ingredient(line) == (qty, unit, food)
+
+
+def test_parse_ingredient_zero_denominator_does_not_crash():
+    # malformed fraction must not raise ZeroDivisionError
+    assert nutrition.parse_ingredient("1/0 cup sugar") == (None, None, "1/0 cup sugar")
+    # the integer is kept; the malformed fraction is left in the food text
+    assert nutrition.parse_ingredient("1 1/0 cups flour") == (1.0, None, "1/0 cups flour")
