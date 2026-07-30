@@ -2,6 +2,7 @@
 for calorie/macro lookups, with a flagged llama3.2 fallback for foods not in the
 table. Numbers are approximations — awareness, not a medical tracker."""
 import contextlib
+import datetime
 import json
 import re
 import sqlite3
@@ -43,6 +44,19 @@ def init_db():
                    aliases  TEXT,
                    calories REAL, protein REAL, carbs REAL, fat REAL,
                    portions TEXT)"""
+        )
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS daily_log (
+                   id       INTEGER PRIMARY KEY,
+                   log_date TEXT NOT NULL,
+                   food     TEXT,
+                   calories REAL, protein REAL, carbs REAL, fat REAL,
+                   logged_at TEXT NOT NULL)"""
+        )
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS nutrition_goals (
+                   id       INTEGER PRIMARY KEY CHECK (id = 1),
+                   calories REAL, protein REAL, carbs REAL, fat REAL)"""
         )
         empty = c.execute("SELECT COUNT(*) FROM nutrition_foods").fetchone()[0] == 0
         c.commit()
@@ -283,6 +297,8 @@ def answer_query(text):
     """Answer "calories/macros in X" for a stored recipe (per serving, cached) or
     an ad-hoc food. Returns a spoken sentence."""
     from john_whisk import recipes
+    if any(p in _norm(text) for p in _STATUS_PHRASES):
+        return answer_status()
     subject = _subject(text)
     if not subject:
         return "Which food or recipe do you want the nutrition for?"
@@ -305,3 +321,186 @@ def answer_query(text):
     if out is None:
         return f"I couldn't find nutrition for {subject}."
     return describe(out, per_serving=False, estimated=out["estimated"])
+
+
+# --- Phase B: daily intake log + goals ------------------------------------
+
+_STATUS_PHRASES = ("how am i doing", "what have i eaten", "what did i eat",
+                   "how much have i eaten", "my intake", "so far today",
+                   "calories today", "eaten today", "my total today")
+
+# spoken goal field -> canonical macro
+_GOAL_FIELD = {"calorie": "calories", "calories": "calories", "protein": "protein",
+               "carb": "carbs", "carbs": "carbs", "carbohydrate": "carbs", "fat": "fat"}
+
+
+def _today():
+    return datetime.date.today().isoformat()
+
+
+def _join(parts):
+    parts = list(parts)
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        return parts[0] + " and " + parts[1]
+    return ", ".join(parts[:-1]) + ", and " + parts[-1]
+
+
+def _insert_log(food, nutr):
+    init_db()
+    now = datetime.datetime.now().isoformat(timespec="seconds")
+    with contextlib.closing(_conn()) as c:
+        c.execute(
+            "INSERT INTO daily_log (log_date, food, calories, protein, carbs, fat, logged_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (_today(), food, nutr["calories"], nutr["protein"], nutr["carbs"],
+             nutr["fat"], now))
+        c.commit()
+
+
+def log_food(text):
+    """Log what the user ate today. Handles "I ate a serving of <recipe>" (logs
+    the recipe's per-serving nutrition) and free-form lists ("two eggs and
+    toast"). Returns a spoken confirmation."""
+    from john_whisk import recipes
+    raw = _norm(text)
+    m = re.search(r"serving of (.+)$", raw)
+    if m:
+        recipe = recipes.find(m.group(1).strip())
+        if recipe:
+            nutr = recipes.get_nutrition(recipe["title"]) or for_recipe(recipe)["per_serving"]
+            _insert_log(f"{recipe['title']} (serving)", nutr)
+            return f"Logged a serving of {recipe['title']}: about {round(nutr['calories'])} calories."
+    body = re.sub(r"^(i just ate|i ate|i had|log|add|ate)\b", "", raw).strip()
+    if not body:
+        return "What did you eat?"
+    logged, total = [], 0.0
+    for frag in re.split(r"\s+and\s+|,", body):
+        frag = frag.strip()
+        if not frag:
+            continue
+        qty, unit, food = parse_ingredient(frag)
+        nutr = for_food(qty, unit, food)
+        if nutr:
+            _insert_log(frag, nutr)
+            logged.append(frag)
+            total += nutr["calories"]
+    if not logged:
+        return "I couldn't work out the nutrition for that."
+    return f"Logged {_join(logged)}. That's about {round(total)} calories."
+
+
+def today():
+    """Today's summed macros as {calories, protein, carbs, fat}."""
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        row = c.execute(
+            "SELECT COALESCE(SUM(calories),0), COALESCE(SUM(protein),0), "
+            "COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0) "
+            "FROM daily_log WHERE log_date = ?", (_today(),)).fetchone()
+    return {m: round(row[i], 1) for i, m in enumerate(_MACROS)}
+
+
+def today_entries():
+    """Today's individual log rows (for the dashboard): [{id, food, calories, ...}]."""
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        rows = c.execute(
+            "SELECT id, food, calories, protein, carbs, fat FROM daily_log "
+            "WHERE log_date = ? ORDER BY id", (_today(),)).fetchall()
+    return [{"id": r[0], "food": r[1], "calories": r[2], "protein": r[3],
+             "carbs": r[4], "fat": r[5]} for r in rows]
+
+
+def remove_log(entry_id):
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        c.execute("DELETE FROM daily_log WHERE id = ?", (entry_id,))
+        c.commit()
+
+
+def clear_today():
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        c.execute("DELETE FROM daily_log WHERE log_date = ?", (_today(),))
+        c.commit()
+
+
+def goals():
+    """The daily goals as {calories, protein, carbs, fat}; a field is None if unset."""
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        row = c.execute(
+            "SELECT calories, protein, carbs, fat FROM nutrition_goals WHERE id = 1").fetchone()
+    if not row:
+        return {m: None for m in _MACROS}
+    return {m: row[i] for i, m in enumerate(_MACROS)}
+
+
+def set_goal(field, value):
+    """Set one daily goal (field in calories/protein/carbs/fat). Returns True if set."""
+    field = field.lower()
+    if field not in _MACROS:
+        return False
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        c.execute("INSERT OR IGNORE INTO nutrition_goals (id, calories, protein, carbs, fat) "
+                  "VALUES (1, NULL, NULL, NULL, NULL)")
+        c.execute(f"UPDATE nutrition_goals SET {field} = ? WHERE id = 1", (float(value),))
+        c.commit()
+    return True
+
+
+def remaining():
+    """Goal minus today's total per macro; None where no goal is set."""
+    g, t = goals(), today()
+    return {m: (round(g[m] - t[m], 1) if g[m] is not None else None) for m in _MACROS}
+
+
+def set_goal_from_text(text):
+    """Set a goal from speech: "set my calorie goal to 2000" / "protein goal 150 grams"."""
+    t = _norm(text)
+    num = re.search(r"(\d+(?:\.\d+)?)", t)
+    field = next((v for k, v in _GOAL_FIELD.items() if k in t), None)
+    if not field:
+        return "Which goal — calories, protein, carbs, or fat?"
+    if not num:
+        return f"What number should I set your {field} goal to?"
+    set_goal(field, float(num.group(1)))
+    return f"Set your daily {field} goal to {round(float(num.group(1)))}."
+
+
+def answer_goals():
+    g = goals()
+    labels = {"calories": "calories", "protein": "grams protein",
+              "carbs": "grams carbs", "fat": "grams fat"}
+    have = [f"{round(v)} {labels[m]}" for m, v in g.items() if v is not None]
+    if not have:
+        return "You haven't set any nutrition goals yet."
+    return "Your daily goals are " + _join(have) + "."
+
+
+def goal_command(text):
+    """Dispatch a goal utterance: a number means set, otherwise report goals."""
+    if re.search(r"\d", text):
+        return set_goal_from_text(text)
+    return answer_goals()
+
+
+def answer_status():
+    """Spoken 'how am I doing today' — today's totals vs goals where set."""
+    t, g = today(), goals()
+    if not any(t[m] for m in _MACROS):
+        return "You haven't logged any food today."
+    labels = {"calories": "calories", "protein": "grams protein",
+              "carbs": "grams carbs", "fat": "grams fat"}
+
+    def seg(m):
+        if g[m] is not None:
+            return f"{round(t[m])} of {round(g[m])} {labels[m]}"
+        return f"{round(t[m])} {labels[m]}"
+
+    return "Today you've had " + _join([seg(m) for m in _MACROS]) + "."
