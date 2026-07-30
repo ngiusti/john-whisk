@@ -200,7 +200,7 @@ def test_is_planned_log():
     assert not mealplan.is_planned_log("I ate two eggs")
 
 
-def test_calendar_add_writes_to_google(tmp_path, monkeypatch):
+def test_calendar_add_confirms_before_writing(tmp_path, monkeypatch):
     _fresh(tmp_path, monkeypatch)
     from john_whisk import calwrite, calsync
     monkeypatch.setattr(calwrite, "available", lambda: True)
@@ -209,21 +209,67 @@ def test_calendar_add_writes_to_google(tmp_path, monkeypatch):
                         lambda summary, start, **k: cap.update(summary=summary, start=start)
                         or {"ok": True, "link": "x"})
     monkeypatch.setattr(calsync, "sync", lambda now=None: 0)
-    reply = mealplan.handle_calendar_add(
+    ask = mealplan.handle_calendar_add(
         "add a dentist appointment to my calendar august 20th at 4pm", NOW)
-    assert "google calendar" in reply.lower()
+    assert "should i" in ask.lower() and "dentist" in ask.lower()
+    assert not cap                                     # NOTHING written until confirmed
+    done = mealplan.confirm_pending()
+    assert "google calendar" in done.lower()
     assert cap["summary"].lower().startswith("dentist")
     assert cap["start"] == datetime.datetime(2026, 8, 20, 16, 0)
 
 
-def test_calendar_add_falls_back_local(tmp_path, monkeypatch):
+def test_calendar_add_confirm_falls_back_local(tmp_path, monkeypatch):
     _fresh(tmp_path, monkeypatch)
     from john_whisk import calwrite
     monkeypatch.setattr(calwrite, "available", lambda: False)
-    reply = mealplan.handle_calendar_add(
-        "add an appointment to my calendar august 20th at 4pm", NOW)
+    mealplan.handle_calendar_add("add an appointment to my calendar august 20th at 4pm", NOW)
+    reply = mealplan.confirm_pending()
     assert "saved" in reply.lower()
     assert mealplan.events_for("2026-08-20") == ["appointment"]
+
+
+def test_confirm_reply():
+    assert mealplan.confirm_reply("yes please") == "yes"
+    assert mealplan.confirm_reply("no, cancel that") == "no"
+    assert mealplan.confirm_reply("never mind") == "no"
+    assert mealplan.confirm_reply("what's for dinner") is None
+
+
+def test_calendar_edit_delete(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    from john_whisk import calwrite, calsync
+    monkeypatch.setattr(calwrite, "list_events", lambda **k: [
+        {"id": "e1", "summary": "dentist appointment", "start": "2026-08-21T12:00:00-07:00"}])
+    seen = {}
+    monkeypatch.setattr(calwrite, "delete_event", lambda eid: seen.update(id=eid) or True)
+    monkeypatch.setattr(calsync, "sync", lambda now=None: 0)
+    ask = mealplan.handle_calendar_edit("delete the appointment on august 21st", NOW)
+    assert "delete" in ask.lower() and "dentist" in ask.lower()
+    done = mealplan.confirm_pending()
+    assert "deleted" in done.lower() and seen["id"] == "e1"
+
+
+def test_calendar_edit_rename(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    from john_whisk import calwrite, calsync
+    monkeypatch.setattr(calwrite, "list_events", lambda **k: [
+        {"id": "e1", "summary": "dent disappointment", "start": "2026-08-21T12:00:00-07:00"}])
+    seen = {}
+    monkeypatch.setattr(calwrite, "update_summary",
+                        lambda eid, s: seen.update(id=eid, s=s) or True)
+    monkeypatch.setattr(calsync, "sync", lambda now=None: 0)
+    ask = mealplan.handle_calendar_edit(
+        "rename the appointment on august 21st to dentist appointment", NOW)
+    assert "rename" in ask.lower()
+    done = mealplan.confirm_pending()
+    assert seen["s"] == "dentist appointment" and "renamed" in done.lower()
+
+
+def test_router_calendar_edit():
+    from john_whisk import router
+    assert router.classify("delete the appointment on friday") == "calendar_edit"
+    assert router.classify("rename the appointment to dentist") == "calendar_edit"
 
 
 def test_router_calendar_add():

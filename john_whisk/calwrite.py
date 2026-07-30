@@ -66,3 +66,45 @@ def create_event(summary, start, end=None, all_day=False, tz=None):
         return {"ok": True, "link": ev.get("htmlLink", "")}
     except Exception:
         return None
+
+
+def list_events(days_ahead=45, max_results=100):
+    """Upcoming events as [{id, summary, start}] (start is an ISO string), or
+    None if not set up / offline."""
+    svc = _service()
+    if svc is None:
+        return None
+    now = datetime.datetime.utcnow()
+    try:
+        res = svc.events().list(
+            calendarId="primary", timeMin=now.isoformat() + "Z",
+            timeMax=(now + datetime.timedelta(days=days_ahead)).isoformat() + "Z",
+            singleEvents=True, orderBy="startTime", maxResults=max_results).execute()
+    except Exception:
+        return None
+    return [{"id": e["id"], "summary": e.get("summary", ""),
+             "start": e["start"].get("dateTime", e["start"].get("date", ""))}
+            for e in res.get("items", [])]
+
+
+def delete_event(event_id):
+    svc = _service()
+    if svc is None:
+        return False
+    try:
+        svc.events().delete(calendarId="primary", eventId=event_id).execute()
+        return True
+    except Exception:
+        return False
+
+
+def update_summary(event_id, summary):
+    svc = _service()
+    if svc is None:
+        return False
+    try:
+        svc.events().patch(calendarId="primary", eventId=event_id,
+                           body={"summary": summary}).execute()
+        return True
+    except Exception:
+        return False

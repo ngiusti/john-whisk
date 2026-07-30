@@ -30,5 +30,6 @@ def _isolate_recipes_db(tmp_path, monkeypatch):
     DB_PATH is intentionally left alone (test_config checks its real value;
     inventory tests set it themselves)."""
     monkeypatch.setattr(config, "RECIPES_DB_PATH", str(tmp_path / "recipes.db"), raising=False)
-    from john_whisk import mode
+    from john_whisk import mode, mealplan
     mode.clear()          # module-global conversational mode; start each test clean
+    mealplan._clear_pending()   # module-global pending calendar confirmation

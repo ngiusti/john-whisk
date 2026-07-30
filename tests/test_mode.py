@@ -29,11 +29,12 @@ def test_calendar_mode_biases_ambiguous(tmp_path, monkeypatch):
     monkeypatch.setattr(calwrite, "available", lambda: False)   # local fallback, no network
     k = cooking.Kitchen()
     main.process_utterance("calendar mode", k)
-    # "add a dentist appointment tomorrow at 4pm" (no "to my calendar") would
-    # normally be a LOCAL event; in calendar mode it goes through the calendar path.
-    r = main.process_utterance("add a dentist appointment tomorrow at 4pm", k)
-    assert "calendar" in r.lower() or "saved" in r.lower()
-    assert mode.get() == "calendar"          # still in mode
+    # in calendar mode this goes through the calendar path (confirm-first)
+    ask = main.process_utterance("add a dentist appointment tomorrow at 4pm", k)
+    assert "should i" in ask.lower() and "dentist" in ask.lower()
+    done = main.process_utterance("yes", k)          # confirm -> saved (local fallback)
+    assert "saved" in done.lower()
+    assert mode.get() == "calendar"                  # still in mode
 
 
 def test_calendar_mode_reads_questions(tmp_path, monkeypatch):

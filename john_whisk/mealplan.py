@@ -474,30 +474,145 @@ def _fmt_time(tm):
     return f"{h % 12 or 12}:{m:02d} {'AM' if h < 12 else 'PM'}"
 
 
+# A pending action awaiting a yes/no, so a MIS-HEARD title never hits the real
+# calendar without a read-back confirmation.
+_pending = {"action": None}
+_DELETE_WORDS = ("delete", "remove", "cancel", "get rid")
+_RENAME_WORDS = ("rename", "change", "make it", "call it", "correct")
+
+
+def has_pending():
+    return _pending["action"] is not None
+
+
+def _clear_pending():
+    _pending["action"] = None
+
+
+def cancel_pending():
+    _clear_pending()
+    return "Okay, cancelled — nothing changed on your calendar."
+
+
+_NO_CUES = ("no", "nope", "nah", "cancel", "never mind", "nevermind", "stop",
+            "wrong", "don't", "dont", "forget it")
+_YES_CUES = ("yes", "yeah", "yep", "yup", "sure", "correct", "confirm", "okay",
+             "ok", "right", "perfect", "do it", "go ahead", "please do",
+             "sounds good", "that's right", "thats right", "affirmative")
+
+
+def confirm_reply(text):
+    """'yes' / 'no' / None for a confirmation utterance (checks no-cues first)."""
+    p = " " + re.sub(r"[^a-z' ]", " ", (text or "").lower()) + " "
+    if any((" " + c + " ") in p for c in _NO_CUES):
+        return "no"
+    if any((" " + c + " ") in p for c in _YES_CUES):
+        return "yes"
+    return None
+
+
 def handle_calendar_add(text, now=None):
-    """Create a real event on the user's Google Calendar; fall back to a local
-    event if Google isn't set up / reachable."""
-    from john_whisk import calwrite
+    """Parse an add request and ask for confirmation (catching mis-hears) before
+    anything is written to the calendar."""
     now = now or _now()
     date = parse_date(text, now)
     if date is None:
         return "What day should I add that to your calendar?"
     tm = parse_time(text)
     summary = _extract_calendar_summary(text) or "appointment"
-    when = _friendly(date, now) + (f" at {_fmt_time(tm)}" if tm else "")
+    if tm:
+        start = datetime.datetime(date.year, date.month, date.day, tm[0], tm[1])
+        all_day = False
+    else:
+        start, all_day = date, True
+    when = _friendly(date, now) + (f" at {_fmt_time(tm)}" if tm else " (all day)")
+    _pending["action"] = {"kind": "add", "summary": summary, "start": start,
+                          "all_day": all_day}
+    return f"I'll add \"{summary}\" {when}. Should I? Say yes or no."
+
+
+def _create_event_now(summary, start, all_day):
+    from john_whisk import calwrite
     if calwrite.available():
-        if tm:
-            start = datetime.datetime(date.year, date.month, date.day, tm[0], tm[1])
-            res = calwrite.create_event(summary, start)
-        else:
-            res = calwrite.create_event(summary, date, all_day=True)
+        res = calwrite.create_event(summary, start, all_day=all_day)
         if res:
             from john_whisk import calsync
-            calsync.sync(now)                    # so it shows in the look-ahead
-            return f"Added {summary} to your Google calendar {when}."
-    add_event(date.isoformat(), summary)
-    return (f"I couldn't reach your Google calendar, so I saved {summary} "
-            f"{when} here in John Whisk for now.")
+            calsync.sync()
+            return f"Done — added \"{summary}\" to your Google calendar."
+    d = start.date() if isinstance(start, datetime.datetime) else start
+    add_event(d.isoformat(), summary)
+    return f"I couldn't reach Google, so I saved \"{summary}\" here in John Whisk for now."
+
+
+def confirm_pending():
+    from john_whisk import calwrite, calsync
+    p = _pending["action"]
+    _clear_pending()
+    if not p:
+        return "There's nothing to confirm."
+    if p["kind"] == "add":
+        return _create_event_now(p["summary"], p["start"], p["all_day"])
+    if p["kind"] == "delete":
+        if calwrite.delete_event(p["event_id"]):
+            calsync.sync()
+            return f"Deleted \"{p['summary']}\" from your calendar."
+        return "I couldn't delete that — you may be offline."
+    if p["kind"] == "rename":
+        if calwrite.update_summary(p["event_id"], p["new_title"]):
+            calsync.sync()
+            return f"Renamed it to \"{p['new_title']}\"."
+        return "I couldn't rename that — you may be offline."
+    return "There's nothing to confirm."
+
+
+def _find_google_events(date):
+    from john_whisk import calwrite
+    evs = calwrite.list_events()
+    if evs is None:
+        return None
+    iso = date.isoformat()
+    return [e for e in evs if (e.get("start") or "").startswith(iso)]
+
+
+def _new_title(text):
+    m = re.search(r"\b(?:to|into|call it|make it)\s+(.+)$", (text or "").strip(), re.I)
+    if not m:
+        return ""
+    return _CUT.split(m.group(1), maxsplit=1)[0].strip(" .,")
+
+
+def handle_calendar_edit(text, now=None):
+    """Delete or rename an existing Google Calendar event, with confirmation."""
+    now = now or _now()
+    t = _norm(text)
+    date = parse_date(text, now)
+    if date is None:
+        return "Which day's event? Say the day, like \"the Friday appointment\"."
+    events = _find_google_events(date)
+    if events is None:
+        return "I can't reach your calendar right now."
+    if not events:
+        return f"I don't see anything on {_friendly(date, now)}."
+    target = events[0]
+    if len(events) > 1:
+        matches = [e for e in events
+                   if any(w in t for w in _norm(e["summary"]).split() if len(w) > 2)]
+        if len(matches) == 1:
+            target = matches[0]
+        else:
+            names = _join([e["summary"] or "untitled" for e in events])
+            return (f"There are a few things on {_friendly(date, now)}: {names}. "
+                    "Which one — tell me its name.")
+    if any(w in t for w in _RENAME_WORDS):
+        nt = _new_title(text)
+        if not nt:
+            return "What should I rename it to?"
+        _pending["action"] = {"kind": "rename", "event_id": target["id"],
+                              "new_title": nt, "summary": target["summary"]}
+        return f"Rename \"{target['summary']}\" to \"{nt}\"? Say yes or no."
+    _pending["action"] = {"kind": "delete", "event_id": target["id"],
+                          "summary": target["summary"]}
+    return f"Delete \"{target['summary']}\" on {_friendly(date, now)}? Say yes or no."
 
 
 def clarify(text):
@@ -529,6 +644,8 @@ def apply_calendar_mode(text, now=None):
     a short prompt."""
     now = now or _now()
     t = _norm(text)
+    if any(w in t for w in _DELETE_WORDS + _RENAME_WORDS):
+        return handle_calendar_edit(text, now)
     if any(t == q or t.startswith(q + " ") for q in _CAL_Q_STARTS):
         return answer_upcoming(text, now)
     if parse_date(text, now):

@@ -76,6 +76,16 @@ EVENT_ADD_TRIGGERS = [
     "i've got plans", "ive got plans", "i have a meeting", "i have a party",
     "i have a birthday", "add to my calendar", "dentist", "doctor's",
 ]
+# EDIT (delete / rename) an existing calendar event.
+CALENDAR_EDIT_TRIGGERS = [
+    "delete the appointment", "delete my appointment", "delete the event",
+    "remove the appointment", "remove the event", "remove it from my calendar",
+    "cancel the appointment", "cancel my appointment", "cancel the event",
+    "rename the appointment", "rename the event", "rename it to", "rename that to",
+    "change the appointment", "change the event", "change that appointment",
+    "delete it from my calendar", "delete from my calendar",
+    "get rid of the appointment", "get rid of the event",
+]
 # WRITE to the real Google Calendar. Action-anchored so it beats the read query
 # ("what's on my calendar") and the local event_add ("I have an appointment").
 CALENDAR_ADD_TRIGGERS = [
@@ -183,6 +193,8 @@ def classify(text: str) -> str:
         return "nutrition_query"
     if any(k in t for k in PLAN_TRIGGERS):
         return "plan"
+    if any(k in t for k in CALENDAR_EDIT_TRIGGERS):
+        return "calendar_edit"               # delete / rename an event
     if "calendar" in t and any(v in t for v in _CAL_ADD_VERBS):
         return "calendar_add"                # "put/add/schedule ... calendar" -> write
     if any(k in t for k in PLAN_QUERY_TRIGGERS):

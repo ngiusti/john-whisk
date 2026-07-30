@@ -11,6 +11,14 @@ log = logging.getLogger("john_whisk")
 def process_utterance(text, kitchen):
     """Route one transcribed utterance, mutating `kitchen` (the recipe queue).
     Returns the spoken reply."""
+    # answering a pending calendar confirmation ("I'll add X — yes?")
+    if mealplan.has_pending():
+        decision = mealplan.confirm_reply(text)
+        if decision == "no":
+            return mealplan.cancel_pending()
+        if decision == "yes":
+            return mealplan.confirm_pending()
+        mealplan.cancel_pending()            # unclear -> drop it, handle as new command
     if cooking.is_recipes_query(text) and not mealplan.mentions_day(text):
         return kitchen.summary()             # "what am I making" (right now) — anytime;
                                              # with a day ("...Friday") it's a calendar query
@@ -51,6 +59,8 @@ def process_utterance(text, kitchen):
         return mealplan.handle_set(text)
     if intent == "calendar_add":
         return mealplan.handle_calendar_add(text)
+    if intent == "calendar_edit":
+        return mealplan.handle_calendar_edit(text)
     if intent == "calendar_query":
         return mealplan.answer_upcoming(text)
     if intent == "event_add":
