@@ -215,11 +215,56 @@ def _zero():
     return {m: 0.0 for m in _MACROS}
 
 
+def _fdc_lookup(food):
+    """Online enrichment: when a food isn't in the local table, query USDA
+    FoodData Central (needs an API key in settings), CACHE the result into
+    nutrition_foods (so it's local next time), and return it. None if no
+    key / offline / no hit."""
+    from john_whisk import net, settings
+    key = settings.get("fdc_key")
+    if not key:
+        return None
+    data = net.get_json("https://api.nal.usda.gov/fdc/v1/foods/search",
+                        {"query": food, "api_key": key, "pageSize": 1,
+                         "dataType": "Foundation,SR Legacy"})
+    foods = (data or {}).get("foods") or []
+    if not foods:
+        return None
+    macros = _zero()
+    for n in foods[0].get("foodNutrients", []):
+        name = (n.get("nutrientName") or "").lower()
+        val = n.get("value")
+        if val is None:
+            continue
+        if "energy" in name and (n.get("unitName", "").upper() == "KCAL" or "kcal" in name):
+            macros["calories"] = float(val)
+        elif name == "protein":
+            macros["protein"] = float(val)
+        elif name.startswith("carbohydrate"):
+            macros["carbs"] = float(val)
+        elif "total lipid" in name:
+            macros["fat"] = float(val)
+    if not macros["calories"]:
+        return None
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        c.execute("INSERT OR IGNORE INTO nutrition_foods "
+                  "(name, aliases, calories, protein, carbs, fat, portions) "
+                  "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                  (food.lower(), json.dumps([]), macros["calories"], macros["protein"],
+                   macros["carbs"], macros["fat"], json.dumps({})))
+        c.commit()
+    return {"name": food.lower(), "aliases": [], "per_100g": macros, "portions": {}}
+
+
 def for_food(quantity, unit, food):
     """Nutrition for one food amount as {calories, protein, carbs, fat,
-    estimated}. Uses the local table + gram conversion when possible; otherwise
-    an LLM estimate (estimated=True). Returns None if neither yields data."""
+    estimated}. Uses the local table + gram conversion when possible, then a
+    USDA lookup (cached), otherwise an LLM estimate (estimated=True). Returns
+    None if none yield data."""
     entry = lookup(food)
+    if entry is None:
+        entry = _fdc_lookup(food)          # online enrichment, cached locally
     grams = to_grams(quantity, unit, food) if entry else None
     if entry and grams is None and quantity is None:
         grams = 100.0                      # bare food name -> per-100g from the table

@@ -210,6 +210,33 @@ def test_for_food_bare_name_uses_table(tmp_path, monkeypatch):
     assert out["calories"] == 130 and out["estimated"] is False
 
 
+def test_fdc_enriches_on_miss_and_caches(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)
+    from john_whisk import settings, net
+    settings.set("online_enabled", "1")
+    settings.set("fdc_key", "KEY")
+    payload = {"foods": [{"description": "Bagel", "foodNutrients": [
+        {"nutrientName": "Energy", "unitName": "KCAL", "value": 250},
+        {"nutrientName": "Protein", "value": 9},
+        {"nutrientName": "Carbohydrate, by difference", "value": 48},
+        {"nutrientName": "Total lipid (fat)", "value": 1.5}]}]}
+    monkeypatch.setattr(net, "get_json", lambda *a, **k: payload)
+    out = nutrition.for_food(None, None, "bagel")        # not in seed -> FDC
+    assert out["calories"] == 250 and out["estimated"] is False
+    # cached into nutrition_foods: works again with the network down
+    monkeypatch.setattr(net, "get_json", lambda *a, **k: None)
+    out2 = nutrition.for_food(None, None, "bagel")
+    assert out2["calories"] == 250 and out2["estimated"] is False
+
+
+def test_fdc_skipped_without_key_falls_to_llm(tmp_path, monkeypatch):
+    _fixture_seed(tmp_path, monkeypatch)           # no fdc_key set
+    monkeypatch.setattr(nutrition.llm, "estimate_nutrition",
+                        lambda text: {"calories": 99, "protein": 1, "carbs": 2, "fat": 3})
+    out = nutrition.for_food(1, None, "bagel")
+    assert out["estimated"] is True and out["calories"] == 99
+
+
 def test_answer_query_recipe_cache_hit(tmp_path, monkeypatch):
     _fixture_seed(tmp_path, monkeypatch)
     from john_whisk import recipes
