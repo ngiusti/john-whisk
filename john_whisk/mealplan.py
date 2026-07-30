@@ -217,7 +217,19 @@ def handle_set(text, now=None):
     if not dish:
         return "What would you like to plan?"
     add_plan(date.isoformat(), dish)
-    return f"Planned {dish} for {_friendly(date, now)}."
+    return f"Planned {dish} for {_friendly(date, now)}." + _auto_grocery(dish)
+
+
+def _auto_grocery(dish):
+    """If the dish is a STORED recipe (no LLM), add its missing ingredients to
+    the grocery list and return a clause to append. Offline + snappy."""
+    from john_whisk import recipes, grocery, db
+    recipe = recipes.find(dish)
+    if not recipe:
+        return ""
+    missing = grocery._missing(recipe.get("ingredients", ""), db.get_inventory())
+    added = grocery.add(missing) if missing else []
+    return (" Added to your grocery list: " + _join(added) + ".") if added else ""
 
 
 def _answer_range(now, days, label):
@@ -369,3 +381,24 @@ def answer_upcoming(text, now=None):
         from john_whisk import seasonal
         return (f"Nothing on the calendar this {window}. " + seasonal.answer_in_season(now))
     return f"Coming up this {window} — " + "; ".join(bits) + "."
+
+
+# --- Phase 3: log a planned meal into nutrition ---------------------------
+
+def is_planned_log(text):
+    """True for "I ate my planned <day> dinner" — a plan-driven nutrition log."""
+    t = _norm(text)
+    return "plan" in t and any(k in t for k in ("ate", "had", "made", "cooked"))
+
+
+def log_planned(text, now=None):
+    """Log the dish(es) planned for a day into today's nutrition."""
+    from john_whisk import nutrition
+    now = now or _now()
+    date = parse_date(text, now) or now.date()
+    dishes = plan_for(date.isoformat())
+    if not dishes:
+        return f"You have nothing planned for {_friendly(date, now)}."
+    for dish in dishes:
+        nutrition.log_food(f"i ate a serving of {dish}")
+    return "Logged " + _join(dishes) + " to today's nutrition."

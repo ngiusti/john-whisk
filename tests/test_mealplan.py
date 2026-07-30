@@ -164,3 +164,36 @@ def test_router_event_and_calendar_intents():
 def test_event_add_does_not_shadow_equipment():
     from john_whisk import router
     assert router.classify("I have a blender") == "equipment"
+
+
+# --- Phase 3: auto features -----------------------------------------------
+
+def test_planning_auto_adds_missing_to_grocery(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    from john_whisk import recipes, grocery
+    recipes.add_recipe("Chicken Alfredo", "chicken, pasta, cream, parmesan", ["Cook."])
+    reply = mealplan.handle_set("plan chicken alfredo for friday", NOW)
+    assert "grocery" in reply.lower()
+    assert any("cream" in g.lower() for g in grocery.items())
+
+
+def test_is_planned_log():
+    assert mealplan.is_planned_log("I ate my planned dinner")
+    assert not mealplan.is_planned_log("I ate two eggs")
+
+
+def test_log_planned_feeds_nutrition(tmp_path, monkeypatch):
+    import json
+    _fresh(tmp_path, monkeypatch)
+    from john_whisk import recipes, nutrition
+    seed = tmp_path / "nutrition.json"
+    seed.write_text(json.dumps([
+        {"name": "egg", "aliases": ["eggs"],
+         "per_100g": {"calories": 143, "protein": 12.6, "carbs": 0.7, "fat": 9.5},
+         "portions": {"each": 50}}]))
+    monkeypatch.setattr(config, "NUTRITION_SEED_PATH", str(seed))
+    recipes.add_recipe("Egg Dish", "2 eggs", ["Cook."])
+    mealplan.add_plan(NOW.date().isoformat(), "Egg Dish")
+    reply = mealplan.log_planned("I ate my planned dinner", NOW)
+    assert "egg dish" in reply.lower()
+    assert nutrition.today()["calories"] > 0

@@ -25,6 +25,8 @@ def process_utterance(text, kitchen):
     if intent == "nutrition_goal":
         return nutrition.goal_command(text)
     if intent == "nutrition_log":
+        if mealplan.is_planned_log(text):
+            return mealplan.log_planned(text)
         return nutrition.log_food(text)
     if intent == "nutrition_query":
         return nutrition.answer_query(text)
