@@ -4,7 +4,7 @@ in sync. Run: `python -m john_whisk.web`."""
 from flask import Flask, request, jsonify, abort
 
 from john_whisk import (config, db, recipes, grocery, ratings,
-                        restrictions, equipment, flavor)
+                        restrictions, equipment, flavor, nutrition)
 
 
 def _field(name):
@@ -97,6 +97,38 @@ def create_app():
     _setting_routes("equipment", equipment)
     _setting_routes("flavor", flavor)
 
+    # --- nutrition (today's log + goals) ----------------------------------
+    @app.get("/api/nutrition")
+    def nutrition_status():
+        return jsonify(totals=nutrition.today(), goals=nutrition.goals(),
+                       remaining=nutrition.remaining(), entries=nutrition.today_entries())
+
+    @app.post("/api/nutrition/log")
+    def nutrition_log_add():
+        nutrition.log_food(_field("item"))
+        return jsonify(totals=nutrition.today(), entries=nutrition.today_entries())
+
+    @app.post("/api/nutrition/log/remove")
+    def nutrition_log_remove():
+        data = request.get_json(silent=True) or {}
+        try:
+            nutrition.remove_log(int(data.get("id")))
+        except (TypeError, ValueError):
+            abort(400, description="numeric 'id' required")
+        return jsonify(totals=nutrition.today(), entries=nutrition.today_entries())
+
+    @app.post("/api/nutrition/goal")
+    def nutrition_goal_set():
+        data = request.get_json(silent=True) or {}
+        field = str(data.get("field", "")).strip().lower()
+        try:
+            value = float(data.get("value"))
+        except (TypeError, ValueError):
+            abort(400, description="numeric 'value' required")
+        if not nutrition.set_goal(field, value):
+            abort(400, description="field must be calories, protein, carbs, or fat")
+        return jsonify(goals=nutrition.goals(), remaining=nutrition.remaining())
+
     @app.errorhandler(400)
     def _bad(e):
         return jsonify(error=str(e.description)), 400
@@ -143,7 +175,7 @@ const A=(p,o)=>fetch(p,o).then(r=>r.json());
 const POST=(p,b)=>A(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
 const el=(h)=>{const d=document.createElement('div');d.innerHTML=h;return d.firstElementChild};
 let tab='grocery';
-const tabs=[['grocery','Grocery'],['pantry','Pantry'],['recipes','Recipes'],['settings','Settings']];
+const tabs=[['grocery','Grocery'],['pantry','Pantry'],['recipes','Recipes'],['nutrition','Nutrition'],['settings','Settings']];
 function nav(){const n=document.getElementById('nav');n.innerHTML='';
  tabs.forEach(([k,l])=>{const b=el(`<button class="${k==tab?'on':''}">${l}</button>`);
  b.onclick=()=>{tab=k;render()};n.appendChild(b)})}
@@ -178,6 +210,26 @@ async function render(){nav();const a=app();a.innerHTML='';
          alert(v.title+"\\n\\nIngredients: "+v.ingredients+"\\n\\n"+v.steps.map((s,i)=>(i+1)+'. '+s).join('\\n'))};
        a.appendChild(r)})};
    add.querySelector('button').onclick=go;a.appendChild(add);go();
+ } else if(tab=='nutrition'){
+   const d=await A('/api/nutrition');const g=d.goals,t=d.totals,rem=d.remaining;
+   a.appendChild(el('<h3>Today</h3>'));
+   [['calories','calories'],['protein','g protein'],['carbs','g carbs'],['fat','g fat']].forEach(([k,label])=>{
+     const line=g[k]!=null?`${Math.round(t[k])} / ${Math.round(g[k])} ${label}`:`${Math.round(t[k])} ${label}`;
+     const right=g[k]!=null?`<span class=s>${Math.round(rem[k])} left</span>`:'';
+     a.appendChild(el(`<div class=row><div class=t>${line}</div>${right}</div>`))});
+   const add=el('<div class=add><input id=ni placeholder="Log a food, e.g. two eggs"><button>Log</button></div>');
+   add.querySelector('button').onclick=async()=>{const v=add.querySelector('#ni').value.trim();
+     if(v){await POST('/api/nutrition/log',{item:v});render()}};a.appendChild(add);
+   a.appendChild(el('<h3>Logged today</h3>'));
+   if(!d.entries.length)a.appendChild(el('<div class=muted>Nothing logged yet.</div>'));
+   d.entries.forEach(e=>{const r=el(`<div class=row><div class=t>${e.food}</div><span class=s>${Math.round(e.calories)} cal</span><button class=x>&times;</button></div>`);
+     r.querySelector('.x').onclick=async()=>{await POST('/api/nutrition/log/remove',{id:e.id});render()};a.appendChild(r)});
+   a.appendChild(el('<h3>Daily goals</h3>'));
+   [['calories','Calories'],['protein','Protein (g)'],['carbs','Carbs (g)'],['fat','Fat (g)']].forEach(([k,label])=>{
+     const cur=g[k]!=null?g[k]:'';
+     const row=el(`<div class=add><input id=goal_${k} type=number placeholder="${label}" value="${cur}"><button>Set</button></div>`);
+     row.querySelector('button').onclick=async()=>{const v=row.querySelector('#goal_'+k).value.trim();
+       if(v!==''){await POST('/api/nutrition/goal',{field:k,value:parseFloat(v)});render()}};a.appendChild(row)});
  } else {
    const s=await A('/api/settings');
    const sec=(title,name,items,opts)=>{a.appendChild(el(`<h3>${title}</h3>`));

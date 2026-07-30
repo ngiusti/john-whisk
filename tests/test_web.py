@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from john_whisk import config, web, recipes
@@ -7,6 +9,13 @@ from john_whisk import config, web, recipes
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", str(tmp_path / "p.db"))
     monkeypatch.setattr(config, "RECIPES_DB_PATH", str(tmp_path / "r.db"))
+    seed = tmp_path / "nutrition.json"
+    seed.write_text(json.dumps([
+        {"name": "egg", "aliases": ["eggs"],
+         "per_100g": {"calories": 143, "protein": 12.6, "carbs": 0.7, "fat": 9.5},
+         "portions": {"each": 50}},
+    ]))
+    monkeypatch.setattr(config, "NUTRITION_SEED_PATH", str(seed))
     app = web.create_app()
     app.config["TESTING"] = True
     return app.test_client()
@@ -66,3 +75,28 @@ def test_settings_flow(client):
 
 def test_bad_post_returns_400(client):
     assert client.post("/api/grocery", json={}).status_code == 400
+
+
+def test_nutrition_status_empty(client):
+    r = client.get("/api/nutrition").get_json()
+    assert r["totals"]["calories"] == 0 and r["entries"] == []
+
+
+def test_nutrition_log_and_remove(client):
+    client.post("/api/nutrition/log", json={"item": "two eggs"})
+    r = client.get("/api/nutrition").get_json()
+    assert r["totals"]["calories"] == 143 and len(r["entries"]) == 1
+    eid = r["entries"][0]["id"]
+    client.post("/api/nutrition/log/remove", json={"id": eid})
+    assert client.get("/api/nutrition").get_json()["entries"] == []
+
+
+def test_nutrition_goal_flow(client):
+    client.post("/api/nutrition/goal", json={"field": "calories", "value": 2000})
+    r = client.get("/api/nutrition").get_json()
+    assert r["goals"]["calories"] == 2000 and r["remaining"]["calories"] == 2000
+
+
+def test_nutrition_goal_bad_field_400(client):
+    assert client.post("/api/nutrition/goal",
+                       json={"field": "banana", "value": 1}).status_code == 400
