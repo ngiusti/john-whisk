@@ -114,3 +114,10 @@ def test_recipes_quick_endpoint(client):
     r = client.get("/api/recipes/quick?max=20").get_json()
     titles = [x["title"] for x in r["results"]]
     assert "Fast Salad" in titles and "Slow Roast" not in titles and r["max"] == 20
+
+
+def test_recipes_budget_endpoint(client):
+    recipes.add_recipe("Bean Bowl", "beans, rice, onion", ["Cook."])
+    recipes.add_recipe("Lobster Feast", "lobster, saffron", ["Cook."])
+    titles = [x["title"] for x in client.get("/api/recipes/budget").get_json()["results"]]
+    assert "Bean Bowl" in titles and "Lobster Feast" not in titles

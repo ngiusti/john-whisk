@@ -4,7 +4,7 @@ in sync. Run: `python -m john_whisk.web`."""
 from flask import Flask, request, jsonify, abort
 
 from john_whisk import (config, db, recipes, grocery, ratings, restrictions,
-                        equipment, flavor, nutrition, expiration, timing)
+                        equipment, flavor, nutrition, expiration, timing, seasonal)
 
 
 def _field(name):
@@ -80,6 +80,14 @@ def create_app():
         except (TypeError, ValueError):
             mx = 30
         return jsonify(results=timing.quick_recipes(mx, limit=25), max=mx)
+
+    @app.get("/api/recipes/seasonal")
+    def recipes_seasonal():
+        return jsonify(results=seasonal.seasonal_recipes(seasonal._now().month, limit=25))
+
+    @app.get("/api/recipes/budget")
+    def recipes_budget():
+        return jsonify(results=seasonal.budget_recipes(limit=25))
 
     @app.get("/api/recipes/view")
     def recipes_view():
@@ -215,7 +223,7 @@ async function render(){nav();const a=app();a.innerHTML='';
      const r=el(`<div class=row><div class=t>${q}${it.name}</div>${tag}${c}<button class=x>&times;</button></div>`);
      r.querySelector('.x').onclick=async()=>{await POST('/api/pantry/remove',{name:it.name});render()};return r});
  } else if(tab=='recipes'){
-   const add=el('<div class=add><input id=ri placeholder="Search recipes"><button>Search</button><button id=qk>&le;30m</button></div>');
+   const add=el('<div class=add><input id=ri placeholder="Search recipes"><button>Search</button><button id=qk>&le;30m</button><button id=se>Season</button><button id=bg>Budget</button></div>');
    const showRes=(results,label)=>{[...a.querySelectorAll('.res')].forEach(e=>e.remove());
      a.appendChild(el(`<h3 class=res>${label}</h3>`));
      results.forEach(x=>{const mins=x.minutes!=null?`<span class=s>${x.minutes}m</span>`:'';
@@ -227,7 +235,13 @@ async function render(){nav();const a=app();a.innerHTML='';
      const {results,count}=await A('/api/recipes?q='+encodeURIComponent(q));showRes(results,count+' recipes')};
    const quick=async()=>{const {results,max}=await A('/api/recipes/quick?max=30');
      showRes(results,results.length+' recipes under '+max+' min')};
-   add.querySelector('button').onclick=go;add.querySelector('#qk').onclick=quick;a.appendChild(add);go();
+   const season=async()=>{const {results}=await A('/api/recipes/seasonal');
+     showRes(results,results.length+' in-season recipes')};
+   const budget=async()=>{const {results}=await A('/api/recipes/budget');
+     showRes(results,results.length+' budget-friendly recipes')};
+   add.querySelector('button').onclick=go;add.querySelector('#qk').onclick=quick;
+   add.querySelector('#se').onclick=season;add.querySelector('#bg').onclick=budget;
+   a.appendChild(add);go();
  } else if(tab=='nutrition'){
    const d=await A('/api/nutrition');const g=d.goals,t=d.totals,rem=d.remaining;
    a.appendChild(el('<h3>Today</h3>'));

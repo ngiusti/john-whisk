@@ -13,6 +13,11 @@ EXPIRING_TRIGGERS = [
 # Before suggest so a time budget isn't swallowed by suggest's "what can i make".
 # "minute" catches "in N minutes"; "fast"/"how long" omitted (breakfast/duration).
 QUICK_TRIGGERS = ["minute", "quick", "half an hour", "in an hour", "in a hurry"]
+# Seasonal + budget modes. Before suggest so "what can I make on a budget"
+# / "...that's in season" aren't swallowed by suggest's "what can i make".
+SEASONAL_TRIGGERS = ["in season", "in-season", "seasonal", "this season"]
+BUDGET_TRIGGERS = ["cheap", "budget", "inexpensive", "low cost", "low-cost",
+                   "affordable", "frugal", "save money"]
 # Questions about the STORED recipe library (answered from recipes.db, not the
 # LLM). Placed before cook/suggest/check so "do you have a recipe for X" queries
 # the library instead of the pantry, while "let's make X" stays a cook.
@@ -157,6 +162,10 @@ def classify(text: str) -> str:
         return "expiring"
     if any(k in t for k in QUICK_TRIGGERS):
         return "quick"
+    if any(k in t for k in SEASONAL_TRIGGERS):
+        return "seasonal"
+    if any(k in t for k in BUDGET_TRIGGERS):
+        return "budget"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):
