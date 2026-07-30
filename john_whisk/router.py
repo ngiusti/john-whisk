@@ -9,6 +9,10 @@ EXPIRING_TRIGGERS = [
     "about to expire", "expiring", "expire soon", "past their prime",
     "spoiling", "going to spoil", "what's going bad", "whats going bad",
 ]
+# Time-based filtering ("what can I make in 20 minutes / something quick").
+# Before suggest so a time budget isn't swallowed by suggest's "what can i make".
+# "minute" catches "in N minutes"; "fast"/"how long" omitted (breakfast/duration).
+QUICK_TRIGGERS = ["minute", "quick", "half an hour", "in an hour", "in a hurry"]
 # Questions about the STORED recipe library (answered from recipes.db, not the
 # LLM). Placed before cook/suggest/check so "do you have a recipe for X" queries
 # the library instead of the pantry, while "let's make X" stays a cook.
@@ -151,6 +155,8 @@ def classify(text: str) -> str:
         return "equipment"
     if any(k in t for k in EXPIRING_TRIGGERS):
         return "expiring"
+    if any(k in t for k in QUICK_TRIGGERS):
+        return "quick"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):

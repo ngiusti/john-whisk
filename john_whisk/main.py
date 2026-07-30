@@ -1,5 +1,5 @@
 import logging
-from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona, nutrition, expiration
+from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona, nutrition, expiration, timing
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
@@ -45,6 +45,8 @@ def process_utterance(text, kitchen):
         return inventory.add_from_text(text)
     if intent == "expiring":
         return expiration.answer_expiring()
+    if intent == "quick":
+        return timing.answer_quick(text)
     if intent == "suggest":
         return inventory.suggest(text)
     if intent == "list":

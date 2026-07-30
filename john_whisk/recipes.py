@@ -32,7 +32,7 @@ def init_db():
                    added_at    TEXT NOT NULL)"""
         )
         cols = {r[1] for r in c.execute("PRAGMA table_info(recipes)").fetchall()}
-        for col in ("cal", "protein", "carbs", "fat"):
+        for col in ("cal", "protein", "carbs", "fat", "minutes"):
             if col not in cols:
                 c.execute(f"ALTER TABLE recipes ADD COLUMN {col} REAL")
         c.commit()

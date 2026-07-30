@@ -106,3 +106,11 @@ def test_pantry_includes_expiration_status(client):
     client.post("/api/pantry", json={"name": "eggs"})
     items = client.get("/api/pantry").get_json()["items"]
     assert items and "status" in items[0] and "days_left" in items[0]
+
+
+def test_recipes_quick_endpoint(client):
+    recipes.add_recipe("Fast Salad", "greens", ["Toss.", "Serve."])
+    recipes.add_recipe("Slow Roast", "beef", ["Season.", "Roast for hours.", "Rest."])
+    r = client.get("/api/recipes/quick?max=20").get_json()
+    titles = [x["title"] for x in r["results"]]
+    assert "Fast Salad" in titles and "Slow Roast" not in titles and r["max"] == 20

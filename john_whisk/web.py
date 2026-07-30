@@ -3,8 +3,8 @@ reuses the voice app's SQLite stores, so edits from a phone and from voice stay
 in sync. Run: `python -m john_whisk.web`."""
 from flask import Flask, request, jsonify, abort
 
-from john_whisk import (config, db, recipes, grocery, ratings,
-                        restrictions, equipment, flavor, nutrition, expiration)
+from john_whisk import (config, db, recipes, grocery, ratings, restrictions,
+                        equipment, flavor, nutrition, expiration, timing)
 
 
 def _field(name):
@@ -72,6 +72,14 @@ def create_app():
             return jsonify(results=[{"title": h["title"]} for h in hits], count=recipes.count())
         return jsonify(results=[{"title": t} for t in recipes.list_titles(25)],
                        count=recipes.count())
+
+    @app.get("/api/recipes/quick")
+    def recipes_quick():
+        try:
+            mx = int(request.args.get("max", 30))
+        except (TypeError, ValueError):
+            mx = 30
+        return jsonify(results=timing.quick_recipes(mx, limit=25), max=mx)
 
     @app.get("/api/recipes/view")
     def recipes_view():
@@ -207,16 +215,19 @@ async function render(){nav();const a=app();a.innerHTML='';
      const r=el(`<div class=row><div class=t>${q}${it.name}</div>${tag}${c}<button class=x>&times;</button></div>`);
      r.querySelector('.x').onclick=async()=>{await POST('/api/pantry/remove',{name:it.name});render()};return r});
  } else if(tab=='recipes'){
-   const add=el('<div class=add><input id=ri placeholder="Search recipes"><button>Search</button></div>');
-   const go=async()=>{const q=add.querySelector('#ri').value.trim();
-     const {results,count}=await A('/api/recipes?q='+encodeURIComponent(q));
-     [...a.querySelectorAll('.res')].forEach(e=>e.remove());
-     const h=el(`<h3 class=res>${count} recipes</h3>`);a.appendChild(h);
-     results.forEach(x=>{const r=el(`<div class="row res"><div class=t>${x.title}</div></div>`);
+   const add=el('<div class=add><input id=ri placeholder="Search recipes"><button>Search</button><button id=qk>&le;30m</button></div>');
+   const showRes=(results,label)=>{[...a.querySelectorAll('.res')].forEach(e=>e.remove());
+     a.appendChild(el(`<h3 class=res>${label}</h3>`));
+     results.forEach(x=>{const mins=x.minutes!=null?`<span class=s>${x.minutes}m</span>`:'';
+       const r=el(`<div class="row res"><div class=t>${x.title}</div>${mins}</div>`);
        r.onclick=async()=>{const v=await A('/api/recipes/view?title='+encodeURIComponent(x.title));
          alert(v.title+"\\n\\nIngredients: "+v.ingredients+"\\n\\n"+v.steps.map((s,i)=>(i+1)+'. '+s).join('\\n'))};
        a.appendChild(r)})};
-   add.querySelector('button').onclick=go;a.appendChild(add);go();
+   const go=async()=>{const q=add.querySelector('#ri').value.trim();
+     const {results,count}=await A('/api/recipes?q='+encodeURIComponent(q));showRes(results,count+' recipes')};
+   const quick=async()=>{const {results,max}=await A('/api/recipes/quick?max=30');
+     showRes(results,results.length+' recipes under '+max+' min')};
+   add.querySelector('button').onclick=go;add.querySelector('#qk').onclick=quick;a.appendChild(add);go();
  } else if(tab=='nutrition'){
    const d=await A('/api/nutrition');const g=d.goals,t=d.totals,rem=d.remaining;
    a.appendChild(el('<h3>Today</h3>'));
