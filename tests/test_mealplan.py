@@ -233,6 +233,21 @@ def test_router_calendar_add():
     assert router.classify("I have an appointment friday") == "event_add"
 
 
+def test_router_calendar_add_forgiving_phrasings():
+    from john_whisk import router
+    # action verb + "calendar" -> write, even without the exact old triggers
+    assert router.classify("put a lunch with mom on my calendar friday") == "calendar_add"
+    assert router.classify("schedule a dentist visit on my calendar next monday") == "calendar_add"
+    # broadened read phrasings
+    assert router.classify("what appointments do I have in august") == "calendar_query"
+    assert router.classify("what's on the calendar this weekend") == "calendar_query"
+
+
+def test_clarify_nudges_calendar_misses():
+    assert "calendar" in mealplan.clarify("something something appointment").lower()
+    assert mealplan.clarify("what's a good pasta recipe") is None
+
+
 def test_log_planned_feeds_nutrition(tmp_path, monkeypatch):
     import json
     _fresh(tmp_path, monkeypatch)

@@ -72,6 +72,10 @@ def process_utterance(text, kitchen):
         return inventory.check(text)
     if intent == "remove":
         return inventory.remove_from_text(text)
+    # a nudge if it looks like a half-heard calendar command, else grounded chat
+    hint = mealplan.clarify(text)
+    if hint:
+        return hint
     # general fallback: grounded with the real pantry so it can't invent inventory
     return inventory.ask_general(text)
 

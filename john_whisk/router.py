@@ -58,8 +58,7 @@ PLAN_QUERY_TRIGGERS = [
     "what am i making", "what's for dinner tonight", "whats for dinner tonight",
 ]
 PLAN_SET_TRIGGERS = [
-    "plan ", "schedule", "pencil in", "on the menu", "on the calendar",
-    "add to the menu",
+    "plan ", "schedule", "pencil in", "on the menu", "add to the menu",
 ]
 # Personal events + the "what's coming up" look-ahead. Distinctive triggers so
 # they don't collide with equipment's "i have a X" or pantry add.
@@ -67,7 +66,11 @@ CALENDAR_QUERY_TRIGGERS = [
     "coming up", "on my calendar", "anything going on", "what's going on",
     "whats going on", "what's happening", "whats happening",
     "sync my calendar", "sync calendar", "sync the calendar", "refresh my calendar",
+    "what appointments", "any appointments", "my appointments",
+    "what's on the calendar", "whats on the calendar", "my schedule",
 ]
+# An action verb + the word "calendar" means WRITE (add), vs. a read query.
+_CAL_ADD_VERBS = ("add ", "put ", "schedule", "create ", "book ", "set ")
 EVENT_ADD_TRIGGERS = [
     "remind me", "add an event", "appointment", "have plans", "dinner plans",
     "i've got plans", "ive got plans", "i have a meeting", "i have a party",
@@ -180,6 +183,8 @@ def classify(text: str) -> str:
         return "nutrition_query"
     if any(k in t for k in PLAN_TRIGGERS):
         return "plan"
+    if "calendar" in t and any(v in t for v in _CAL_ADD_VERBS):
+        return "calendar_add"                # "put/add/schedule ... calendar" -> write
     if any(k in t for k in PLAN_QUERY_TRIGGERS):
         return "plan_query"
     if any(k in t for k in PLAN_SET_TRIGGERS):

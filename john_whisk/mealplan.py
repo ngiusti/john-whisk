@@ -498,3 +498,14 @@ def handle_calendar_add(text, now=None):
     add_event(date.isoformat(), summary)
     return (f"I couldn't reach your Google calendar, so I saved {summary} "
             f"{when} here in John Whisk for now.")
+
+
+def clarify(text):
+    """A gentle nudge when an unmatched utterance looks calendar-related (often
+    a half-heard command). Returns a hint, or None to let normal chat handle it."""
+    t = _norm(text)
+    if any(w in t for w in ("calendar", "appointment", "reminder")):
+        return ("It sounds like a calendar request, but I didn't quite catch it. "
+                "Try \"add an appointment to my calendar on Friday at 4 p.m.\", or "
+                "\"what's on my calendar this week\".")
+    return None

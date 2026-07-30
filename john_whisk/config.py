@@ -14,6 +14,8 @@ SAMPLE_RATE = 16000             # whisper + openwakeword both want 16 kHz mono
 # --- Whisper (speech-to-text) ---
 WHISPER_BIN = os.path.join(HOME, "whisper.cpp/build/bin/whisper-cli")
 WHISPER_MODEL = os.path.join(HOME, "whisper.cpp/models/ggml-base.en.bin")
+# NOTE: ggml-small.en(.q5_1) is downloaded and far more accurate but ~10s/command
+# on this Pi (base is ~2s). Flip WHISPER_MODEL to it if you prefer accuracy > speed.
 WHISPER_THREADS = 4
 
 # --- Ollama (LLM) ---
