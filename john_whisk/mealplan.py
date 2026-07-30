@@ -21,12 +21,12 @@ _DAY_HINT = re.compile(
     r"november|december|in \d+ days?|\d{1,2}(?:st|nd|rd|th))\b")
 
 # Cut a dish phrase at the first date-connective word.
-_LEAD = re.compile(r"^\s*(please\s+)?(plan|schedule|put|add|set up|pencil in)\b\s*")
+_LEAD = re.compile(r"^\s*(please\s+)?(plan|schedule|put|add|set up|pencil in)\b\s*", re.I)
 _CUT = re.compile(
     r"\b(for|on|to|this|next|tomorrow|tonight|today|in\s+\d+\s+days?|"
     r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
     r"january|february|march|april|may|june|july|august|september|october|"
-    r"november|december|\d{1,2}(?:st|nd|rd|th))\b")
+    r"november|december|\d{1,2}(?:st|nd|rd|th))\b", re.I)
 
 
 def _now():
@@ -193,14 +193,16 @@ def week(start=None, days=7):
 
 
 def week_entries(start=None, days=7):
-    """Like week() but with removable entry ids, for the dashboard:
-    {date, weekday, entries:[{id, dish}]}."""
+    """Like week() but with removable ids + events + holiday, for the dashboard:
+    {date, weekday, entries:[{id, dish}], events:[{id, description}], holiday}."""
     start = start or _now().date()
     out = []
     for i in range(days):
         d = start + datetime.timedelta(days=i)
         out.append({"date": d.isoformat(), "weekday": d.strftime("%A"),
-                    "entries": plan_entries(d.isoformat())})
+                    "entries": plan_entries(d.isoformat()),
+                    "events": event_entries(d.isoformat()),
+                    "holiday": holiday_on(d)})
     return out
 
 
@@ -238,3 +240,132 @@ def handle_query(text, now=None):
     if not dishes:
         return f"You have nothing planned for {_friendly(date, now)}."
     return f"For {_friendly(date, now)}, you're making " + _join(dishes) + "."
+
+
+# --- Phase 2: personal events, holidays, and the look-ahead ---------------
+
+_FIXED_HOLIDAYS = {
+    (1, 1): "New Year's Day", (2, 14): "Valentine's Day",
+    (3, 17): "St. Patrick's Day", (7, 4): "Independence Day",
+    (10, 31): "Halloween", (11, 11): "Veterans Day",
+    (12, 24): "Christmas Eve", (12, 25): "Christmas", (12, 31): "New Year's Eve",
+}
+
+_EVENT_LEAD = re.compile(
+    r"^\s*(please\s+)?(i have|i've got|ive got|i got|remind me( about| of)?|"
+    r"add an event|there's|theres)\b\s*(a |an )?", re.I)
+
+
+def _thanksgiving(year):
+    """4th Thursday of November."""
+    first = datetime.date(year, 11, 1)
+    first_thu = 1 + (3 - first.weekday()) % 7      # weekday(): Thu == 3
+    return datetime.date(year, 11, first_thu + 21)
+
+
+def holiday_on(date):
+    if (date.month, date.day) in _FIXED_HOLIDAYS:
+        return _FIXED_HOLIDAYS[(date.month, date.day)]
+    if date == _thanksgiving(date.year):
+        return "Thanksgiving"
+    return None
+
+
+def upcoming_holidays(now=None, days=30):
+    now = now or _now()
+    today = now.date()
+    out = []
+    for i in range(days + 1):
+        d = today + datetime.timedelta(days=i)
+        h = holiday_on(d)
+        if h:
+            out.append({"date": d.isoformat(), "name": h})
+    return out
+
+
+def add_event(date, description):
+    init_db()
+    now = datetime.datetime.now().isoformat(timespec="seconds")
+    with contextlib.closing(_conn()) as c:
+        c.execute("INSERT INTO events (event_date, description, added_at) VALUES (?, ?, ?)",
+                  (date, description, now))
+        c.commit()
+
+
+def events_for(date):
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        return [r[0] for r in c.execute(
+            "SELECT description FROM events WHERE event_date = ? ORDER BY id", (date,)).fetchall()]
+
+
+def event_entries(date):
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        return [{"id": r[0], "description": r[1]} for r in c.execute(
+            "SELECT id, description FROM events WHERE event_date = ? ORDER BY id", (date,)).fetchall()]
+
+
+def remove_event(entry_id):
+    init_db()
+    with contextlib.closing(_conn()) as c:
+        c.execute("DELETE FROM events WHERE id = ?", (entry_id,))
+        c.commit()
+
+
+def _extract_event(text):
+    t = _EVENT_LEAD.sub("", (text or "").strip())
+    return _CUT.split(t, maxsplit=1)[0].strip(" ,.")
+
+
+def handle_event_add(text, now=None):
+    now = now or _now()
+    date = parse_date(text, now)
+    if date is None:
+        return "Which day is that on?"
+    desc = _extract_event(text)
+    if not desc:
+        return "What's the event?"
+    add_event(date.isoformat(), desc)
+    return f"Noted — {desc} {_friendly(date, now)}."
+
+
+def upcoming(now=None, days=7):
+    """Structured look-ahead: planned meals, personal events, holidays, season."""
+    now = now or _now()
+    today = now.date()
+    meals, events = [], []
+    for i in range(days + 1):
+        d = today + datetime.timedelta(days=i)
+        iso = d.isoformat()
+        meals += [{"date": iso, "dish": dish} for dish in plan_for(iso)]
+        events += [{"date": iso, "description": ev} for ev in events_for(iso)]
+    from john_whisk import seasonal
+    return {"meals": meals, "events": events,
+            "holidays": upcoming_holidays(now, days),
+            "season": seasonal.in_season(today.month)}
+
+
+def _when(iso, now):
+    return _friendly(datetime.date.fromisoformat(iso), now)
+
+
+def answer_upcoming(text, now=None):
+    now = now or _now()
+    days = 30 if "month" in _norm(text) else 7
+    u = upcoming(now, days)
+    bits = []
+    if u["events"]:
+        bits.append("events — " + _join([f"{e['description']} {_when(e['date'], now)}"
+                                          for e in u["events"][:4]]))
+    if u["holidays"]:
+        bits.append("holidays — " + _join([f"{h['name']} {_when(h['date'], now)}"
+                                            for h in u["holidays"][:3]]))
+    if u["meals"]:
+        bits.append("planned meals — " + _join([f"{m['dish']} {_when(m['date'], now)}"
+                                                 for m in u["meals"][:4]]))
+    window = "month" if days == 30 else "week"
+    if not bits:
+        from john_whisk import seasonal
+        return (f"Nothing on the calendar this {window}. " + seasonal.answer_in_season(now))
+    return f"Coming up this {window} — " + "; ".join(bits) + "."

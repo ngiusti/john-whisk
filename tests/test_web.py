@@ -137,3 +137,15 @@ def test_plan_endpoints(client):
 
 def test_plan_add_bad_request(client):
     assert client.post("/api/plan", json={"date": "2026-01-01"}).status_code == 400
+
+
+def test_event_endpoints(client):
+    import datetime
+    today = datetime.date.today().isoformat()
+    client.post("/api/event", json={"date": today, "description": "dentist"})
+    days = client.get("/api/plan?days=7").get_json()["days"]
+    match = [e for d in days for e in d["events"] if e["description"] == "dentist"]
+    assert match
+    client.post("/api/event/remove", json={"id": match[0]["id"]})
+    days2 = client.get("/api/plan?days=7").get_json()["days"]
+    assert not any(e["description"] == "dentist" for d in days2 for e in d["events"])

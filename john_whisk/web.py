@@ -180,6 +180,25 @@ def create_app():
             abort(400, description="numeric 'id' required")
         return jsonify(ok=True)
 
+    @app.post("/api/event")
+    def event_add():
+        data = request.get_json(silent=True) or {}
+        date = str(data.get("date", "")).strip()
+        desc = str(data.get("description", "")).strip()
+        if not date or not desc:
+            abort(400, description="date and description required")
+        mealplan.add_event(date, desc)
+        return jsonify(ok=True)
+
+    @app.post("/api/event/remove")
+    def event_remove():
+        data = request.get_json(silent=True) or {}
+        try:
+            mealplan.remove_event(int(data.get("id")))
+        except (TypeError, ValueError):
+            abort(400, description="numeric 'id' required")
+        return jsonify(ok=True)
+
     @app.errorhandler(400)
     def _bad(e):
         return jsonify(error=str(e.description)), 400
@@ -296,11 +315,17 @@ async function render(){nav();const a=app();a.innerHTML='';
    const add=el('<div class=add><input id=pd type=date><input id=pdish placeholder="Dish"><button>Plan</button></div>');
    add.querySelector('button').onclick=async()=>{const d=add.querySelector('#pd').value;const v=add.querySelector('#pdish').value.trim();
      if(d&&v){await POST('/api/plan',{date:d,dish:v});render()}};a.appendChild(add);
-   const planned=days.filter(d=>d.entries.length);
-   if(!planned.length)a.appendChild(el('<div class=muted>Nothing planned yet. Pick a date and add a dish.</div>'));
-   planned.forEach(day=>{a.appendChild(el(`<h3>${day.weekday} ${day.date.slice(5)}</h3>`));
+   const ev=el('<div class=add><input id=ed type=date><input id=edesc placeholder="Event"><button>Add event</button></div>');
+   ev.querySelector('button').onclick=async()=>{const d=ev.querySelector('#ed').value;const v=ev.querySelector('#edesc').value.trim();
+     if(d&&v){await POST('/api/event',{date:d,description:v});render()}};a.appendChild(ev);
+   const shown=days.filter(d=>d.entries.length||d.events.length||d.holiday);
+   if(!shown.length)a.appendChild(el('<div class=muted>Nothing planned yet. Pick a date above.</div>'));
+   shown.forEach(day=>{const h=day.holiday?` <span class=s style="color:var(--acc)">${day.holiday}</span>`:'';
+     a.appendChild(el(`<h3>${day.weekday} ${day.date.slice(5)}${h}</h3>`));
      day.entries.forEach(e=>{const r=el(`<div class=row><div class=t>${e.dish}</div><button class=x>&times;</button></div>`);
-       r.querySelector('.x').onclick=async()=>{await POST('/api/plan/remove',{id:e.id});render()};a.appendChild(r)})});
+       r.querySelector('.x').onclick=async()=>{await POST('/api/plan/remove',{id:e.id});render()};a.appendChild(r)});
+     day.events.forEach(e=>{const r=el(`<div class=row><div class=t>${e.description}</div><span class=s>event</span><button class=x>&times;</button></div>`);
+       r.querySelector('.x').onclick=async()=>{await POST('/api/event/remove',{id:e.id});render()};a.appendChild(r)})});
  } else {
    const s=await A('/api/settings');
    const sec=(title,name,items,opts)=>{a.appendChild(el(`<h3>${title}</h3>`));

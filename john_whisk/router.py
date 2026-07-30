@@ -61,6 +61,17 @@ PLAN_SET_TRIGGERS = [
     "plan ", "schedule", "pencil in", "on the menu", "on the calendar",
     "add to the menu",
 ]
+# Personal events + the "what's coming up" look-ahead. Distinctive triggers so
+# they don't collide with equipment's "i have a X" or pantry add.
+CALENDAR_QUERY_TRIGGERS = [
+    "coming up", "on my calendar", "anything going on", "what's going on",
+    "whats going on", "what's happening", "whats happening",
+]
+EVENT_ADD_TRIGGERS = [
+    "remind me", "add an event", "appointment", "have plans", "dinner plans",
+    "i've got plans", "ive got plans", "i have a meeting", "i have a party",
+    "i have a birthday", "add to my calendar", "dentist", "doctor's",
+]
 # Grocery-list management. Placed before add/remove so "add X to my grocery
 # list" / "remove X from my grocery list" don't fall into pantry add/remove.
 GROCERY_TRIGGERS = [
@@ -165,6 +176,10 @@ def classify(text: str) -> str:
         return "plan_query"
     if any(k in t for k in PLAN_SET_TRIGGERS):
         return "plan_set"
+    if any(k in t for k in CALENDAR_QUERY_TRIGGERS):
+        return "calendar_query"
+    if any(k in t for k in EVENT_ADD_TRIGGERS):
+        return "event_add"
     if any(k in t for k in GROCERY_TRIGGERS):
         return "grocery"
     if any(k in t for k in DIETARY_TRIGGERS):

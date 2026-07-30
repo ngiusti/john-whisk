@@ -105,3 +105,62 @@ def test_router_plan_does_not_break_grocery_plan():
     from john_whisk import router
     assert router.classify("I would like to make lasagna") == "plan"
     assert router.classify("plan to make lasagna") == "plan"
+
+
+# --- Phase 2: events, holidays, upcoming ----------------------------------
+
+def test_holiday_on_fixed_and_thanksgiving():
+    assert mealplan.holiday_on(datetime.date(2026, 12, 25)) == "Christmas"
+    assert mealplan.holiday_on(datetime.date(2026, 7, 4)) == "Independence Day"
+    # Thanksgiving 2026 = 4th Thursday of Nov = Nov 26
+    assert mealplan.holiday_on(datetime.date(2026, 11, 26)) == "Thanksgiving"
+    assert mealplan.holiday_on(datetime.date(2026, 3, 3)) is None
+
+
+def test_add_and_query_event(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    reply = mealplan.handle_event_add("I have dinner plans thursday", NOW)
+    assert "dinner plans" in reply.lower()
+    assert mealplan.events_for("2026-07-16") == ["dinner plans"]   # Thu 7/16 (= tomorrow)
+
+
+def test_event_no_date_prompts(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    assert "which day" in mealplan.handle_event_add("I have plans", NOW).lower()
+
+
+def test_upcoming_combines(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    mealplan.add_plan("2026-07-17", "tacos")               # Fri
+    mealplan.add_event("2026-07-16", "dentist")            # Thu
+    u = mealplan.upcoming(NOW, days=7)
+    assert any(m["dish"] == "tacos" for m in u["meals"])
+    assert any(e["description"] == "dentist" for e in u["events"])
+    assert u["season"]                                     # July produce present
+
+
+def test_answer_upcoming_mentions_items(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    mealplan.add_plan("2026-07-17", "tacos")
+    mealplan.add_event("2026-07-16", "dentist")
+    s = mealplan.answer_upcoming("what's coming up this week", NOW)
+    assert "tacos" in s.lower() and "dentist" in s.lower()
+
+
+def test_answer_upcoming_empty_falls_back_to_season(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    s = mealplan.answer_upcoming("what's coming up", NOW)
+    assert "nothing on the calendar" in s.lower() and "season" in s.lower()
+
+
+def test_router_event_and_calendar_intents():
+    from john_whisk import router
+    assert router.classify("I have dinner plans thursday") == "event_add"
+    assert router.classify("remind me about the dentist friday") == "event_add"
+    assert router.classify("what's coming up this week") == "calendar_query"
+    assert router.classify("anything going on this weekend") == "calendar_query"
+
+
+def test_event_add_does_not_shadow_equipment():
+    from john_whisk import router
+    assert router.classify("I have a blender") == "equipment"
