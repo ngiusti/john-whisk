@@ -43,8 +43,9 @@ def parse_ics(text):
     return out
 
 
-def sync():
-    """Fetch + parse the iCal URL and replace the cache. Returns event count, or
+def sync(now=None):
+    """Fetch + parse the iCal URL and replace the cache with today-and-future
+    events only (calendars export years of history). Returns event count, or
     None if no URL / offline / unreachable."""
     url = settings.get("ical_url")
     if not url:
@@ -52,16 +53,17 @@ def sync():
     text = net.get_text(url)
     if text is None:
         return None
-    events = parse_ics(text)
+    cutoff = ((now or datetime.datetime.now()).date() - datetime.timedelta(days=1)).isoformat()
+    events = [e for e in parse_ics(text) if e["date"] >= cutoff]
     init_db()
-    now = datetime.datetime.now().isoformat(timespec="seconds")
+    ts = datetime.datetime.now().isoformat(timespec="seconds")
     with contextlib.closing(_conn()) as c:
         c.execute("DELETE FROM ical_events")
         for e in events:
             c.execute("INSERT INTO ical_events (event_date, description, uid, synced_at) "
-                      "VALUES (?, ?, ?, ?)", (e["date"], e["description"], e["uid"], now))
+                      "VALUES (?, ?, ?, ?)", (e["date"], e["description"], e["uid"], ts))
         c.commit()
-    settings.set("ical_last_sync", now)
+    settings.set("ical_last_sync", ts)
     return len(events)
 
 
@@ -80,7 +82,7 @@ def maybe_sync(now=None):
     """Sync only if configured, online, and the cache is stale. Safe no-op
     otherwise (keeps reads off the network when possible)."""
     if settings.get("ical_url") and net.online() and _stale(now):
-        sync()
+        sync(now)
 
 
 def events_for(date):
