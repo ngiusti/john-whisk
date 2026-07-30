@@ -11,3 +11,4 @@ models/*.ppn
 config.py.bak
 remy.log
 recipes.db
+secrets/
