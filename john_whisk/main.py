@@ -1,5 +1,5 @@
 import logging
-from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona, nutrition, expiration, timing, seasonal
+from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona, nutrition, expiration, timing, seasonal, mealplan
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
@@ -11,8 +11,9 @@ log = logging.getLogger("john_whisk")
 def process_utterance(text, kitchen):
     """Route one transcribed utterance, mutating `kitchen` (the recipe queue).
     Returns the spoken reply."""
-    if cooking.is_recipes_query(text):
-        return kitchen.summary()             # "what am I making" — works anytime
+    if cooking.is_recipes_query(text) and not mealplan.mentions_day(text):
+        return kitchen.summary()             # "what am I making" (right now) — anytime;
+                                             # with a day ("...Friday") it's a calendar query
     if kitchen.active:
         return kitchen.navigate(text)        # in a recipe: nav / enqueue / cancel-all
     intent = router.classify(text)
@@ -29,6 +30,10 @@ def process_utterance(text, kitchen):
         return nutrition.answer_query(text)
     if intent == "plan":
         return grocery.plan_meal(cooking.dish_from_text(text))
+    if intent == "plan_query":
+        return mealplan.handle_query(text)
+    if intent == "plan_set":
+        return mealplan.handle_set(text)
     if intent == "grocery":
         return grocery.handle(text)
     if intent == "dietary":

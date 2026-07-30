@@ -4,7 +4,8 @@ in sync. Run: `python -m john_whisk.web`."""
 from flask import Flask, request, jsonify, abort
 
 from john_whisk import (config, db, recipes, grocery, ratings, restrictions,
-                        equipment, flavor, nutrition, expiration, timing, seasonal)
+                        equipment, flavor, nutrition, expiration, timing, seasonal,
+                        mealplan)
 
 
 def _field(name):
@@ -151,6 +152,34 @@ def create_app():
             abort(400, description="field must be calories, protein, carbs, or fat")
         return jsonify(goals=nutrition.goals(), remaining=nutrition.remaining())
 
+    # --- meal-plan calendar -----------------------------------------------
+    @app.get("/api/plan")
+    def plan_get():
+        try:
+            days = int(request.args.get("days", 14))
+        except (TypeError, ValueError):
+            days = 14
+        return jsonify(days=mealplan.week_entries(days=days))
+
+    @app.post("/api/plan")
+    def plan_add():
+        data = request.get_json(silent=True) or {}
+        date = str(data.get("date", "")).strip()
+        dish = str(data.get("dish", "")).strip()
+        if not date or not dish:
+            abort(400, description="date and dish required")
+        mealplan.add_plan(date, dish)
+        return jsonify(ok=True)
+
+    @app.post("/api/plan/remove")
+    def plan_remove():
+        data = request.get_json(silent=True) or {}
+        try:
+            mealplan.remove_plan(int(data.get("id")))
+        except (TypeError, ValueError):
+            abort(400, description="numeric 'id' required")
+        return jsonify(ok=True)
+
     @app.errorhandler(400)
     def _bad(e):
         return jsonify(error=str(e.description)), 400
@@ -197,7 +226,7 @@ const A=(p,o)=>fetch(p,o).then(r=>r.json());
 const POST=(p,b)=>A(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
 const el=(h)=>{const d=document.createElement('div');d.innerHTML=h;return d.firstElementChild};
 let tab='grocery';
-const tabs=[['grocery','Grocery'],['pantry','Pantry'],['recipes','Recipes'],['nutrition','Nutrition'],['settings','Settings']];
+const tabs=[['grocery','Grocery'],['pantry','Pantry'],['recipes','Recipes'],['nutrition','Nutrition'],['plan','Plan'],['settings','Settings']];
 function nav(){const n=document.getElementById('nav');n.innerHTML='';
  tabs.forEach(([k,l])=>{const b=el(`<button class="${k==tab?'on':''}">${l}</button>`);
  b.onclick=()=>{tab=k;render()};n.appendChild(b)})}
@@ -262,6 +291,16 @@ async function render(){nav();const a=app();a.innerHTML='';
      const row=el(`<div class=add><input id=goal_${k} type=number placeholder="${label}" value="${cur}"><button>Set</button></div>`);
      row.querySelector('button').onclick=async()=>{const v=row.querySelector('#goal_'+k).value.trim();
        if(v!==''){await POST('/api/nutrition/goal',{field:k,value:parseFloat(v)});render()}};a.appendChild(row)});
+ } else if(tab=='plan'){
+   const {days}=await A('/api/plan?days=14');
+   const add=el('<div class=add><input id=pd type=date><input id=pdish placeholder="Dish"><button>Plan</button></div>');
+   add.querySelector('button').onclick=async()=>{const d=add.querySelector('#pd').value;const v=add.querySelector('#pdish').value.trim();
+     if(d&&v){await POST('/api/plan',{date:d,dish:v});render()}};a.appendChild(add);
+   const planned=days.filter(d=>d.entries.length);
+   if(!planned.length)a.appendChild(el('<div class=muted>Nothing planned yet. Pick a date and add a dish.</div>'));
+   planned.forEach(day=>{a.appendChild(el(`<h3>${day.weekday} ${day.date.slice(5)}</h3>`));
+     day.entries.forEach(e=>{const r=el(`<div class=row><div class=t>${e.dish}</div><button class=x>&times;</button></div>`);
+       r.querySelector('.x').onclick=async()=>{await POST('/api/plan/remove',{id:e.id});render()};a.appendChild(r)})});
  } else {
    const s=await A('/api/settings');
    const sec=(title,name,items,opts)=>{a.appendChild(el(`<h3>${title}</h3>`));

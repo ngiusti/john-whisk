@@ -48,6 +48,19 @@ PLAN_TRIGGERS = [
     "what do i need to make", "what do i need for", "add ingredients for",
     "shop for",
 ]
+# Meal-planning CALENDAR (schedule dishes onto dates / read the plan). Query is
+# checked before Set (they share "on the menu"), and BOTH after grocery's `plan`
+# (so "plan to make X" stays the grocery meal-planner). Before grocery/suggest.
+PLAN_QUERY_TRIGGERS = [
+    "what's on the menu", "whats on the menu", "what's planned", "whats planned",
+    "what am i having", "what's my meal plan", "whats my meal plan", "my meal plan",
+    "what's on my plan", "whats on my plan", "what's the plan", "whats the plan",
+    "what am i making", "what's for dinner tonight", "whats for dinner tonight",
+]
+PLAN_SET_TRIGGERS = [
+    "plan ", "schedule", "pencil in", "on the menu", "on the calendar",
+    "add to the menu",
+]
 # Grocery-list management. Placed before add/remove so "add X to my grocery
 # list" / "remove X from my grocery list" don't fall into pantry add/remove.
 GROCERY_TRIGGERS = [
@@ -148,6 +161,10 @@ def classify(text: str) -> str:
         return "nutrition_query"
     if any(k in t for k in PLAN_TRIGGERS):
         return "plan"
+    if any(k in t for k in PLAN_QUERY_TRIGGERS):
+        return "plan_query"
+    if any(k in t for k in PLAN_SET_TRIGGERS):
+        return "plan_set"
     if any(k in t for k in GROCERY_TRIGGERS):
         return "grocery"
     if any(k in t for k in DIETARY_TRIGGERS):

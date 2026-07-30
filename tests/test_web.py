@@ -121,3 +121,19 @@ def test_recipes_budget_endpoint(client):
     recipes.add_recipe("Lobster Feast", "lobster, saffron", ["Cook."])
     titles = [x["title"] for x in client.get("/api/recipes/budget").get_json()["results"]]
     assert "Bean Bowl" in titles and "Lobster Feast" not in titles
+
+
+def test_plan_endpoints(client):
+    import datetime
+    today = datetime.date.today().isoformat()
+    client.post("/api/plan", json={"date": today, "dish": "tacos"})
+    days = client.get("/api/plan?days=7").get_json()["days"]
+    match = [e for d in days for e in d["entries"] if e["dish"] == "tacos"]
+    assert match
+    client.post("/api/plan/remove", json={"id": match[0]["id"]})
+    days2 = client.get("/api/plan?days=7").get_json()["days"]
+    assert not any(e["dish"] == "tacos" for d in days2 for e in d["entries"])
+
+
+def test_plan_add_bad_request(client):
+    assert client.post("/api/plan", json={"date": "2026-01-01"}).status_code == 400
