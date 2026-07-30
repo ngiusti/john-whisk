@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, abort
 
 from john_whisk import (config, db, recipes, grocery, ratings, restrictions,
                         equipment, flavor, nutrition, expiration, timing, seasonal,
-                        mealplan, settings)
+                        mealplan, settings, calsync)
 
 
 def _field(name):
@@ -199,6 +199,11 @@ def create_app():
             abort(400, description="numeric 'id' required")
         return jsonify(ok=True)
 
+    @app.post("/api/calendar/sync")
+    def calendar_sync():
+        n = calsync.sync()
+        return jsonify(ok=n is not None, count=n)
+
     # --- online-feature settings (secrets not echoed back) ----------------
     @app.get("/api/online-settings")
     def online_settings_get():
@@ -336,14 +341,19 @@ async function render(){nav();const a=app();a.innerHTML='';
    const ev=el('<div class=add><input id=ed type=date><input id=edesc placeholder="Event"><button>Add event</button></div>');
    ev.querySelector('button').onclick=async()=>{const d=ev.querySelector('#ed').value;const v=ev.querySelector('#edesc').value.trim();
      if(d&&v){await POST('/api/event',{date:d,description:v});render()}};a.appendChild(ev);
+   const sc=el('<div class=add><button class=btn style="flex:1">Sync calendar</button></div>');
+   sc.querySelector('button').onclick=async()=>{const r=await POST('/api/calendar/sync');
+     alert(r.ok?('Synced '+r.count+' calendar events.'):'Could not reach your calendar. Set the iCal link in Settings.');render()};a.appendChild(sc);
    const shown=days.filter(d=>d.entries.length||d.events.length||d.holiday);
    if(!shown.length)a.appendChild(el('<div class=muted>Nothing planned yet. Pick a date above.</div>'));
    shown.forEach(day=>{const h=day.holiday?` <span class=s style="color:var(--acc)">${day.holiday}</span>`:'';
      a.appendChild(el(`<h3>${day.weekday} ${day.date.slice(5)}${h}</h3>`));
      day.entries.forEach(e=>{const r=el(`<div class=row><div class=t>${e.dish}</div><button class=x>&times;</button></div>`);
        r.querySelector('.x').onclick=async()=>{await POST('/api/plan/remove',{id:e.id});render()};a.appendChild(r)});
-     day.events.forEach(e=>{const r=el(`<div class=row><div class=t>${e.description}</div><span class=s>event</span><button class=x>&times;</button></div>`);
-       r.querySelector('.x').onclick=async()=>{await POST('/api/event/remove',{id:e.id});render()};a.appendChild(r)})});
+     day.events.forEach(e=>{const tag=e.source=='calendar'?'<span class=s>cal</span>':'<span class=s>event</span>';
+       const rm=e.id?'<button class=x>&times;</button>':'';
+       const r=el(`<div class=row><div class=t>${e.description}</div>${tag}${rm}</div>`);
+       if(e.id)r.querySelector('.x').onclick=async()=>{await POST('/api/event/remove',{id:e.id});render()};a.appendChild(r)})});
  } else {
    const s=await A('/api/settings');
    const sec=(title,name,items,opts)=>{a.appendChild(el(`<h3>${title}</h3>`));

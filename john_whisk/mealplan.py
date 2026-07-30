@@ -195,13 +195,18 @@ def week(start=None, days=7):
 def week_entries(start=None, days=7):
     """Like week() but with removable ids + events + holiday, for the dashboard:
     {date, weekday, entries:[{id, dish}], events:[{id, description}], holiday}."""
+    from john_whisk import calsync
     start = start or _now().date()
     out = []
     for i in range(days):
         d = start + datetime.timedelta(days=i)
-        out.append({"date": d.isoformat(), "weekday": d.strftime("%A"),
-                    "entries": plan_entries(d.isoformat()),
-                    "events": event_entries(d.isoformat()),
+        iso = d.isoformat()
+        events = [{"id": e["id"], "description": e["description"], "source": "manual"}
+                  for e in event_entries(iso)]
+        events += [{"id": None, "description": ev, "source": "calendar"}
+                   for ev in calsync.events_for(iso)]
+        out.append({"date": iso, "weekday": d.strftime("%A"),
+                    "entries": plan_entries(iso), "events": events,
                     "holiday": holiday_on(d)})
     return out
 
@@ -343,15 +348,19 @@ def handle_event_add(text, now=None):
 
 
 def upcoming(now=None, days=7):
-    """Structured look-ahead: planned meals, personal events, holidays, season."""
+    """Structured look-ahead: planned meals, personal + synced calendar events,
+    holidays, season."""
     now = now or _now()
     today = now.date()
+    from john_whisk import calsync
+    calsync.maybe_sync(now)               # refresh the iCal cache if stale + online
     meals, events = [], []
     for i in range(days + 1):
         d = today + datetime.timedelta(days=i)
         iso = d.isoformat()
         meals += [{"date": iso, "dish": dish} for dish in plan_for(iso)]
         events += [{"date": iso, "description": ev} for ev in events_for(iso)]
+        events += [{"date": iso, "description": ev} for ev in calsync.events_for(iso)]
     from john_whisk import seasonal
     return {"meals": meals, "events": events,
             "holidays": upcoming_holidays(now, days),
@@ -364,6 +373,9 @@ def _when(iso, now):
 
 def answer_upcoming(text, now=None):
     now = now or _now()
+    if "sync" in _norm(text):
+        from john_whisk import calsync
+        return calsync.answer_sync()
     days = 30 if "month" in _norm(text) else 7
     u = upcoming(now, days)
     bits = []

@@ -66,6 +66,7 @@ PLAN_SET_TRIGGERS = [
 CALENDAR_QUERY_TRIGGERS = [
     "coming up", "on my calendar", "anything going on", "what's going on",
     "whats going on", "what's happening", "whats happening",
+    "sync my calendar", "sync calendar", "sync the calendar", "refresh my calendar",
 ]
 EVENT_ADD_TRIGGERS = [
     "remind me", "add an event", "appointment", "have plans", "dinner plans",

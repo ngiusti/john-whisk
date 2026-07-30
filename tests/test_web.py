@@ -159,3 +159,9 @@ def test_online_settings_flow(client):
     r1 = client.get("/api/online-settings").get_json()
     assert r1["online_enabled"] is False and r1["location"] == "Denver"
     assert r1["has_fdc_key"] is True and "SECRET" not in str(r1)   # secret not echoed
+
+
+def test_calendar_sync_endpoint_no_url(client):
+    # no iCal URL configured -> ok False, count None (graceful)
+    r = client.post("/api/calendar/sync").get_json()
+    assert r["ok"] is False and r["count"] is None
