@@ -1,5 +1,5 @@
 import logging
-from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona, nutrition, expiration, timing, seasonal, mealplan
+from john_whisk import config, wake, audio, stt, llm, tts, router, inventory, db, volume, cooking, recipes, grocery, restrictions, ratings, equipment, flavor, persona, nutrition, expiration, timing, seasonal, mealplan, mode
 
 logging.basicConfig(
     filename=config.LOG_FILE, level=logging.INFO,
@@ -16,8 +16,21 @@ def process_utterance(text, kitchen):
                                              # with a day ("...Friday") it's a calendar query
     if kitchen.active:
         return kitchen.navigate(text)        # in a recipe: nav / enqueue / cancel-all
+    # conversational mode steering ("let's look into the calendar" -> calendar mode)
+    m = mode.detect_set(text)
+    if m == "calendar":
+        mode.set("calendar")
+        return "Okay, calendar mode. " + mealplan.answer_upcoming("what's coming up")
+    if mode.get() and mode.is_exit(text):
+        mode.clear()
+        return "Okay, back to the kitchen."
     intent = router.classify(text)
     log.info("intent: %s", intent)
+    if mode.get() == "calendar":
+        if intent in mealplan.CAL_MODE_OVERRIDE:
+            return mealplan.apply_calendar_mode(text)
+        if intent not in ("calendar_add", "calendar_query"):
+            mode.clear()                     # clear non-calendar command -> leave mode
     if intent == "cook":
         return kitchen.begin(cooking.dish_from_text(text))
     if intent == "recipe_query":

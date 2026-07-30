@@ -509,3 +509,29 @@ def clarify(text):
                 "Try \"add an appointment to my calendar on Friday at 4 p.m.\", or "
                 "\"what's on my calendar this week\".")
     return None
+
+
+# --- calendar mode (steered by mode.py) -----------------------------------
+
+# Intents that, while in calendar mode, are re-read as calendar actions instead
+# of pantry/food ones. Clear food commands (cook, recipe_query, nutrition_*, ...)
+# are NOT here, so they still work and exit the mode.
+CAL_MODE_OVERRIDE = {"general", "event_add", "check", "list", "suggest",
+                     "add", "remove", "plan_query", "plan_set"}
+
+_CAL_Q_STARTS = ("what", "when", "do i", "is there", "are there", "any",
+                 "anything", "how", "whats", "show", "tell me")
+
+
+def apply_calendar_mode(text, now=None):
+    """Interpret an ambiguous utterance as a calendar action while in calendar
+    mode: a question reads the calendar; a day present adds an event; otherwise
+    a short prompt."""
+    now = now or _now()
+    t = _norm(text)
+    if any(t == q or t.startswith(q + " ") for q in _CAL_Q_STARTS):
+        return answer_upcoming(text, now)
+    if parse_date(text, now):
+        return handle_calendar_add(text, now)
+    return ("You're in calendar mode. Tell me an event and a day, like "
+            "\"dentist Friday at 4 p.m.\", or say \"never mind\" to exit.")
