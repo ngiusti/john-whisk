@@ -161,6 +161,9 @@ def suggest(text: str) -> str:
     # Pass ONLY the logged pantry; llm.suggest_recipe enforces the no-invention rule.
     # Active dietary restrictions + learned likes/dislikes are prepended so the
     # model avoids restricted/disliked recipes and favors what you enjoy.
+    from john_whisk import weather      # online-optional; "" when off/unavailable
+    wh = weather.hint()
     request = (restrictions.prompt_clause() + ratings.preference_clause()
-               + equipment.prompt_clause() + flavor.prompt_clause() + text)
+               + equipment.prompt_clause() + flavor.prompt_clause() + text
+               + ((" " + wh) if wh else ""))
     return llm.suggest_recipe(stock_str, request) or "Sorry, my brain hiccupped. Try again."
