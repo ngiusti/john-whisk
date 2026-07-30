@@ -10,12 +10,19 @@ RECIPE_QUERY_TRIGGERS = [
     "is there a recipe", "do you know a recipe", "what recipes", "which recipes",
     "how many recipes", "recipe for",
 ]
-# Nutrition questions about a recipe or food. After recipe_query (so "how many
-# recipes" stays a library query) and after cook; before general.
+# Nutrition questions about a recipe or food, plus "how am I doing today" status.
+# After recipe_query (so "how many recipes" stays a library query) and after cook.
 NUTRITION_QUERY_TRIGGERS = [
     "calories", "macros", "how much protein", "how much fat", "how many carbs",
-    "nutrition", "nutritional",
+    "nutrition", "nutritional", "how am i doing", "what have i eaten",
+    "what did i eat", "so far today", "eaten today",
 ]
+# Set/query a daily nutrition goal. Checked BEFORE nutrition_query so
+# "set my calories goal" isn't grabbed by the "calories" trigger.
+NUTRITION_GOAL_TRIGGERS = ["goal", "target"]
+# Log what was eaten. Before nutrition_query; "i ate a serving of X" must not be
+# a cook. Trailing/leading spaces (the router pads the text) avoid substring hits.
+NUTRITION_LOG_TRIGGERS = ["i ate", "i had", "i just ate", "i just had", "log "]
 # Plan a meal: find the recipe and add MISSING ingredients to the grocery list
 # (does not start cooking). Distinct from cook ("let's make X") — these are
 # desire/intent phrasings the router's cook triggers don't cover.
@@ -117,6 +124,10 @@ def classify(text: str) -> str:
         return "cook"
     if any(k in t for k in RECIPE_QUERY_TRIGGERS):
         return "recipe_query"
+    if any(k in t for k in NUTRITION_GOAL_TRIGGERS):
+        return "nutrition_goal"
+    if any(k in t for k in NUTRITION_LOG_TRIGGERS):
+        return "nutrition_log"
     if any(k in t for k in NUTRITION_QUERY_TRIGGERS):
         return "nutrition_query"
     if any(k in t for k in PLAN_TRIGGERS):

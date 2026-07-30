@@ -21,6 +21,10 @@ def process_utterance(text, kitchen):
         return kitchen.begin(cooking.dish_from_text(text))
     if intent == "recipe_query":
         return recipes.answer_query(text)
+    if intent == "nutrition_goal":
+        return nutrition.goal_command(text)
+    if intent == "nutrition_log":
+        return nutrition.log_food(text)
     if intent == "nutrition_query":
         return nutrition.answer_query(text)
     if intent == "plan":
