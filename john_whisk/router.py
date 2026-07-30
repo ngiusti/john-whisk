@@ -2,6 +2,13 @@ SUGGEST_TRIGGERS = [
     "what can i make", "what can i cook", "what should i", "suggest", "recipe",
     "what's for dinner", "whats for dinner", "ideas for dinner", "make with",
 ]
+# Pantry expiration ("what's going bad / what should I use up"). Before suggest
+# so "what should I use up" isn't swallowed by suggest's "what should i".
+EXPIRING_TRIGGERS = [
+    "going bad", "go bad", "going off", "gone off", "use up", "use it up",
+    "about to expire", "expiring", "expire soon", "past their prime",
+    "spoiling", "going to spoil", "what's going bad", "whats going bad",
+]
 # Questions about the STORED recipe library (answered from recipes.db, not the
 # LLM). Placed before cook/suggest/check so "do you have a recipe for X" queries
 # the library instead of the pantry, while "let's make X" stays a cook.
@@ -142,6 +149,8 @@ def classify(text: str) -> str:
         return "rate"
     if any(k in t for k in EQUIPMENT_TRIGGERS):
         return "equipment"
+    if any(k in t for k in EXPIRING_TRIGGERS):
+        return "expiring"
     if any(k in t for k in SUGGEST_TRIGGERS):
         return "suggest"
     if any(k in t for k in LIST_TRIGGERS):

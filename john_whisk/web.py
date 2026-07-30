@@ -4,7 +4,7 @@ in sync. Run: `python -m john_whisk.web`."""
 from flask import Flask, request, jsonify, abort
 
 from john_whisk import (config, db, recipes, grocery, ratings,
-                        restrictions, equipment, flavor, nutrition)
+                        restrictions, equipment, flavor, nutrition, expiration)
 
 
 def _field(name):
@@ -45,7 +45,13 @@ def create_app():
     # --- pantry -----------------------------------------------------------
     @app.get("/api/pantry")
     def pantry_list():
-        return jsonify(items=db.get_inventory())
+        items = db.get_inventory()
+        status_by = {s["name"]: s for s in expiration.annotate()}
+        for it in items:
+            s = status_by.get(it["name"])
+            it["status"] = s["status"] if s else "fresh"
+            it["days_left"] = s["days_left"] if s else None
+        return jsonify(items=items)
 
     @app.post("/api/pantry")
     def pantry_add():
@@ -197,7 +203,8 @@ async function render(){nav();const a=app();a.innerHTML='';
    add.querySelector('button').onclick=async()=>{const v=add.querySelector('#pi').value.trim();
      if(v){await POST('/api/pantry',{name:v});render()}};a.appendChild(add);
    list(items,it=>{const q=it.quantity?`${it.quantity} `:'';const c=it.category?`<span class=s>${it.category}</span>`:'';
-     const r=el(`<div class=row><div class=t>${q}${it.name}</div>${c}<button class=x>&times;</button></div>`);
+     const tag=(it.status&&it.status!='fresh')?`<span class=s style="color:${it.status=='expired'?'#e06c6c':'#d6a84a'}">${it.status=='expired'?'old':'use soon'}</span>`:'';
+     const r=el(`<div class=row><div class=t>${q}${it.name}</div>${tag}${c}<button class=x>&times;</button></div>`);
      r.querySelector('.x').onclick=async()=>{await POST('/api/pantry/remove',{name:it.name});render()};return r});
  } else if(tab=='recipes'){
    const add=el('<div class=add><input id=ri placeholder="Search recipes"><button>Search</button></div>');

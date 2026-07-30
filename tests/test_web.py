@@ -100,3 +100,9 @@ def test_nutrition_goal_flow(client):
 def test_nutrition_goal_bad_field_400(client):
     assert client.post("/api/nutrition/goal",
                        json={"field": "banana", "value": 1}).status_code == 400
+
+
+def test_pantry_includes_expiration_status(client):
+    client.post("/api/pantry", json={"name": "eggs"})
+    items = client.get("/api/pantry").get_json()["items"]
+    assert items and "status" in items[0] and "days_left" in items[0]
