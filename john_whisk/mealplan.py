@@ -101,6 +101,47 @@ def parse_date(text, now=None):
     return None
 
 
+def parse_time(text):
+    """A clock time (hour, minute) from speech, or None. Handles "4pm",
+    "4:30 pm", noon/midnight, "16:00", and "at 4 in the afternoon/evening"."""
+    t = (text or "").lower()
+    if re.search(r"\bnoon\b", t):          # \b so "afternoon" doesn't match
+        return (12, 0)
+    if "midnight" in t:
+        return (0, 0)
+    m = re.search(r"\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\b", t)
+    if m:
+        hh, mm = int(m.group(1)), int(m.group(2) or 0)
+        if "p" in m.group(3):
+            hh = hh if hh == 12 else hh + 12
+        else:
+            hh = 0 if hh == 12 else hh
+        return (hh, mm) if hh < 24 and mm < 60 else None
+    m = re.search(r"\bat\s+(\d{1,2})(?::(\d{2}))?\b", t)
+    if m:
+        hh, mm = int(m.group(1)), int(m.group(2) or 0)
+        if hh > 23 or mm > 59:
+            return None
+        if any(w in t for w in ("afternoon", "evening", "tonight", "at night")):
+            if hh < 12:
+                hh += 12
+        elif "morning" in t:
+            hh = 0 if hh == 12 else hh
+        elif m.group(2) is None and hh < 13:
+            return None                    # bare "at 4" is ambiguous
+        return (hh, mm)
+    m = re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", t)
+    if m:
+        return (int(m.group(1)), int(m.group(2)))
+    return None
+
+
+def parse_datetime(text, now=None):
+    """(date, time) where date is a datetime.date (or None) and time is
+    (hour, minute) or None."""
+    return parse_date(text, now), parse_time(text)
+
+
 def _friendly(date, now=None):
     now = now or _now()
     today = now.date()
@@ -414,3 +455,46 @@ def log_planned(text, now=None):
     for dish in dishes:
         nutrition.log_food(f"i ate a serving of {dish}")
     return "Logged " + _join(dishes) + " to today's nutrition."
+
+
+# --- Google Calendar write (with local fallback) --------------------------
+
+_CAL_LEAD = re.compile(
+    r"^\s*(please\s+)?(add|put|schedule|create|set up|pencil in)\s+(an?\s+)?", re.I)
+
+
+def _extract_calendar_summary(text):
+    t = _CAL_LEAD.sub("", (text or "").strip())
+    t = re.sub(r"\b(to|on)\s+my\s+(google\s+)?calendar\b", " ", t, flags=re.I)
+    return _CUT.split(t, maxsplit=1)[0].strip(" ,.")
+
+
+def _fmt_time(tm):
+    h, m = tm
+    return f"{h % 12 or 12}:{m:02d} {'AM' if h < 12 else 'PM'}"
+
+
+def handle_calendar_add(text, now=None):
+    """Create a real event on the user's Google Calendar; fall back to a local
+    event if Google isn't set up / reachable."""
+    from john_whisk import calwrite
+    now = now or _now()
+    date = parse_date(text, now)
+    if date is None:
+        return "What day should I add that to your calendar?"
+    tm = parse_time(text)
+    summary = _extract_calendar_summary(text) or "appointment"
+    when = _friendly(date, now) + (f" at {_fmt_time(tm)}" if tm else "")
+    if calwrite.available():
+        if tm:
+            start = datetime.datetime(date.year, date.month, date.day, tm[0], tm[1])
+            res = calwrite.create_event(summary, start)
+        else:
+            res = calwrite.create_event(summary, date, all_day=True)
+        if res:
+            from john_whisk import calsync
+            calsync.sync(now)                    # so it shows in the look-ahead
+            return f"Added {summary} to your Google calendar {when}."
+    add_event(date.isoformat(), summary)
+    return (f"I couldn't reach your Google calendar, so I saved {summary} "
+            f"{when} here in John Whisk for now.")

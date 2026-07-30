@@ -41,6 +41,24 @@ def test_parse_unparseable_returns_none():
     assert mealplan.parse_date("sometime soon", NOW) is None
 
 
+def test_parse_time():
+    assert mealplan.parse_time("august 20th at 4pm") == (16, 0)
+    assert mealplan.parse_time("at 4:30 pm") == (16, 30)
+    assert mealplan.parse_time("at noon") == (12, 0)
+    assert mealplan.parse_time("midnight") == (0, 0)
+    assert mealplan.parse_time("at 16:00") == (16, 0)
+    assert mealplan.parse_time("at 9 in the morning") == (9, 0)
+    assert mealplan.parse_time("at 4 in the afternoon") == (16, 0)
+    assert mealplan.parse_time("12am") == (0, 0)
+    assert mealplan.parse_time("august 20th") is None       # no time -> None
+
+
+def test_parse_datetime():
+    import datetime
+    d, tm = mealplan.parse_datetime("august 20th at 4pm", NOW)
+    assert d == datetime.date(2026, 8, 20) and tm == (16, 0)
+
+
 def test_mentions_day():
     assert mealplan.mentions_day("what am I making friday")
     assert mealplan.mentions_day("what's the plan this week")
@@ -180,6 +198,39 @@ def test_planning_auto_adds_missing_to_grocery(tmp_path, monkeypatch):
 def test_is_planned_log():
     assert mealplan.is_planned_log("I ate my planned dinner")
     assert not mealplan.is_planned_log("I ate two eggs")
+
+
+def test_calendar_add_writes_to_google(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    from john_whisk import calwrite, calsync
+    monkeypatch.setattr(calwrite, "available", lambda: True)
+    cap = {}
+    monkeypatch.setattr(calwrite, "create_event",
+                        lambda summary, start, **k: cap.update(summary=summary, start=start)
+                        or {"ok": True, "link": "x"})
+    monkeypatch.setattr(calsync, "sync", lambda now=None: 0)
+    reply = mealplan.handle_calendar_add(
+        "add a dentist appointment to my calendar august 20th at 4pm", NOW)
+    assert "google calendar" in reply.lower()
+    assert cap["summary"].lower().startswith("dentist")
+    assert cap["start"] == datetime.datetime(2026, 8, 20, 16, 0)
+
+
+def test_calendar_add_falls_back_local(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    from john_whisk import calwrite
+    monkeypatch.setattr(calwrite, "available", lambda: False)
+    reply = mealplan.handle_calendar_add(
+        "add an appointment to my calendar august 20th at 4pm", NOW)
+    assert "saved" in reply.lower()
+    assert mealplan.events_for("2026-08-20") == ["appointment"]
+
+
+def test_router_calendar_add():
+    from john_whisk import router
+    assert router.classify("add an appointment to my calendar august 20th at 4pm") == "calendar_add"
+    assert router.classify("what's on my calendar this week") == "calendar_query"
+    assert router.classify("I have an appointment friday") == "event_add"
 
 
 def test_log_planned_feeds_nutrition(tmp_path, monkeypatch):

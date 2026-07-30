@@ -73,6 +73,13 @@ EVENT_ADD_TRIGGERS = [
     "i've got plans", "ive got plans", "i have a meeting", "i have a party",
     "i have a birthday", "add to my calendar", "dentist", "doctor's",
 ]
+# WRITE to the real Google Calendar. Action-anchored so it beats the read query
+# ("what's on my calendar") and the local event_add ("I have an appointment").
+CALENDAR_ADD_TRIGGERS = [
+    "to my calendar", "add an appointment", "create an event",
+    "create a calendar event", "schedule an appointment",
+    "add it to my calendar", "put it on my calendar", "add an event to my",
+]
 # Grocery-list management. Placed before add/remove so "add X to my grocery
 # list" / "remove X from my grocery list" don't fall into pantry add/remove.
 GROCERY_TRIGGERS = [
@@ -177,6 +184,8 @@ def classify(text: str) -> str:
         return "plan_query"
     if any(k in t for k in PLAN_SET_TRIGGERS):
         return "plan_set"
+    if any(k in t for k in CALENDAR_ADD_TRIGGERS):
+        return "calendar_add"
     if any(k in t for k in CALENDAR_QUERY_TRIGGERS):
         return "calendar_query"
     if any(k in t for k in EVENT_ADD_TRIGGERS):

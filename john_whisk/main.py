@@ -36,6 +36,8 @@ def process_utterance(text, kitchen):
         return mealplan.handle_query(text)
     if intent == "plan_set":
         return mealplan.handle_set(text)
+    if intent == "calendar_add":
+        return mealplan.handle_calendar_add(text)
     if intent == "calendar_query":
         return mealplan.answer_upcoming(text)
     if intent == "event_add":
