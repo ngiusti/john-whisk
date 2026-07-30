@@ -26,6 +26,24 @@ def test_latlon_geocodes_and_caches(tmp_path, monkeypatch):
     assert calls["n"] == 1
 
 
+def test_latlon_disambiguates_by_state(tmp_path, monkeypatch):
+    _fresh(tmp_path, monkeypatch)
+    settings.set("location", "aloha oregon")
+
+    def fake(url, params=None, **k):
+        assert params["name"] == "aloha"        # searches the city token, not the whole string
+        return {"results": [
+            {"name": "Aloha", "admin1": "Louisiana", "country_code": "US",
+             "latitude": 31.5, "longitude": -92.7},
+            {"name": "Aloha", "admin1": "Oregon", "country_code": "US",
+             "latitude": 45.49, "longitude": -122.87},
+        ]}
+
+    monkeypatch.setattr(weather.net, "get_json", fake)
+    lat, lon = weather._latlon()
+    assert round(lat, 1) == 45.5                 # picked Oregon, not the first (Louisiana)
+
+
 def test_current_caches_and_is_fresh(tmp_path, monkeypatch):
     _fresh(tmp_path, monkeypatch)
     settings.set("location", "Denver")

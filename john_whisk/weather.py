@@ -3,6 +3,7 @@ configured city once, caches current conditions ~hourly, and offers a short hint
 to nudge suggestions. Fully optional: no location / offline -> empty hint."""
 import datetime
 import json
+import re
 
 from john_whisk import net, settings
 
@@ -14,21 +15,34 @@ _HOT_C = 28
 
 
 def _latlon():
-    """(lat, lon) for the configured city, geocoded once and cached. None if no
-    city set or geocoding unavailable."""
-    city = (settings.get("location") or "").strip()
-    if not city:
+    """(lat, lon) for the configured location, geocoded once and cached. Handles
+    "City State" ("aloha oregon") by searching the city and disambiguating on the
+    remaining words against the result's state/country. None if unresolved."""
+    raw = (settings.get("location") or "").strip()
+    if not raw:
         return None
-    if settings.get("geo_city") == city and settings.get("lat") and settings.get("lon"):
+    if settings.get("geo_city") == raw and settings.get("lat") and settings.get("lon"):
         return float(settings.get("lat")), float(settings.get("lon"))
-    data = net.get_json(_GEOCODE, {"name": city, "count": 1})
+    parts = [p for p in re.split(r"[,\s]+", raw) if p]
+    name = parts[0]
+    hint = " ".join(parts[1:]).lower()          # e.g. "oregon"
+    data = net.get_json(_GEOCODE, {"name": name, "count": 10})
     res = (data or {}).get("results") or []
     if not res:
         return None
-    lat, lon = float(res[0]["latitude"]), float(res[0]["longitude"])
+    chosen = res[0]
+    if hint:
+        for r in res:
+            admin = (r.get("admin1") or "").lower()
+            country = (r.get("country") or "").lower()
+            cc = (r.get("country_code") or "").lower()
+            if (len(hint) >= 3 and (hint in admin or hint in country)) or hint == cc:
+                chosen = r
+                break
+    lat, lon = float(chosen["latitude"]), float(chosen["longitude"])
     settings.set("lat", lat)
     settings.set("lon", lon)
-    settings.set("geo_city", city)
+    settings.set("geo_city", raw)
     return lat, lon
 
 
