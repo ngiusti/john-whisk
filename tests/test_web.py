@@ -149,3 +149,13 @@ def test_event_endpoints(client):
     client.post("/api/event/remove", json={"id": match[0]["id"]})
     days2 = client.get("/api/plan?days=7").get_json()["days"]
     assert not any(e["description"] == "dentist" for d in days2 for e in d["events"])
+
+
+def test_online_settings_flow(client):
+    r0 = client.get("/api/online-settings").get_json()
+    assert r0["online_enabled"] is True and r0["has_fdc_key"] is False
+    client.post("/api/online-settings",
+                json={"online_enabled": False, "location": "Denver", "fdc_key": "SECRET"})
+    r1 = client.get("/api/online-settings").get_json()
+    assert r1["online_enabled"] is False and r1["location"] == "Denver"
+    assert r1["has_fdc_key"] is True and "SECRET" not in str(r1)   # secret not echoed

@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, abort
 
 from john_whisk import (config, db, recipes, grocery, ratings, restrictions,
                         equipment, flavor, nutrition, expiration, timing, seasonal,
-                        mealplan)
+                        mealplan, settings)
 
 
 def _field(name):
@@ -100,7 +100,7 @@ def create_app():
 
     # --- settings (restrictions / equipment / flavor / ratings) -----------
     @app.get("/api/settings")
-    def settings():
+    def settings_view():
         return jsonify(restrictions=restrictions.active(), equipment=equipment.owned(),
                        flavor=flavor.prefs(), favorites=ratings.favorites(),
                        disliked=ratings.disliked())
@@ -197,6 +197,24 @@ def create_app():
             mealplan.remove_event(int(data.get("id")))
         except (TypeError, ValueError):
             abort(400, description="numeric 'id' required")
+        return jsonify(ok=True)
+
+    # --- online-feature settings (secrets not echoed back) ----------------
+    @app.get("/api/online-settings")
+    def online_settings_get():
+        return jsonify(online_enabled=settings.get_bool("online_enabled", True),
+                       location=settings.get("location", ""),
+                       has_fdc_key=bool(settings.get("fdc_key")),
+                       has_ical_url=bool(settings.get("ical_url")))
+
+    @app.post("/api/online-settings")
+    def online_settings_set():
+        data = request.get_json(silent=True) or {}
+        if "online_enabled" in data:
+            settings.set("online_enabled", "1" if data["online_enabled"] else "0")
+        for k in ("location", "fdc_key", "ical_url"):
+            if k in data:
+                settings.set(k, str(data[k]).strip())
         return jsonify(ok=True)
 
     @app.errorhandler(400)
@@ -339,6 +357,15 @@ async function render(){nav();const a=app();a.innerHTML='';
    sec('Flavor preferences','flavor',s.flavor);
    a.appendChild(el('<h3>Favorites</h3>'));list(s.favorites.length?s.favorites:[], t=>el(`<div class=row><div class=t>${t}</div></div>`));
    if(s.favorites.length==0)a.appendChild(el('<div class=muted>No favorites yet.</div>'));
+   const o=await A('/api/online-settings');
+   a.appendChild(el('<h3>Online features</h3>'));
+   const tog=el(`<div class=row><div class=t>Enable internet features</div><input type=checkbox class=chk ${o.online_enabled?'checked':''}></div>`);
+   tog.querySelector('input').onchange=async(e)=>{await POST('/api/online-settings',{online_enabled:e.target.checked});render()};a.appendChild(tog);
+   const mk=(id,ph,save)=>{const r=el(`<div class=add><input id=${id} placeholder="${ph}"><button>Save</button></div>`);
+     r.querySelector('button').onclick=async()=>{const v=r.querySelector('#'+id).value.trim();if(v){await POST('/api/online-settings',save(v));render()}};a.appendChild(r)};
+   mk('loc', o.location?('City: '+o.location):'City (for weather)', v=>({location:v}));
+   mk('fdc', o.has_fdc_key?'USDA key set — replace':'USDA FoodData key (nutrition)', v=>({fdc_key:v}));
+   mk('ical', o.has_ical_url?'Calendar link set — replace':'Calendar iCal URL', v=>({ical_url:v}));
  }}
 render();
 </script></body></html>"""
