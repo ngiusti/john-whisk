@@ -275,8 +275,11 @@ def test_router_calendar_edit():
 def test_router_calendar_add():
     from john_whisk import router
     assert router.classify("add an appointment to my calendar august 20th at 4pm") == "calendar_add"
+    assert router.classify("add a dentist appointment tomorrow at 3pm") == "calendar_add"  # no "calendar" word
+    assert router.classify("schedule a meeting on friday") == "calendar_add"
     assert router.classify("what's on my calendar this week") == "calendar_query"
-    assert router.classify("I have an appointment friday") == "event_add"
+    assert router.classify("I have an appointment friday") == "event_add"     # "I have" -> local note
+    assert router.classify("schedule pizza saturday") == "plan_set"           # meal, not calendar
 
 
 def test_router_calendar_add_forgiving_phrasings():

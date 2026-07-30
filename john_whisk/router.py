@@ -69,8 +69,10 @@ CALENDAR_QUERY_TRIGGERS = [
     "what appointments", "any appointments", "my appointments",
     "what's on the calendar", "whats on the calendar", "my schedule",
 ]
-# An action verb + the word "calendar" means WRITE (add), vs. a read query.
+# An action verb + a calendar noun means WRITE (add) to Google, vs. a read query
+# or a passive "I have ..." local note.
 _CAL_ADD_VERBS = ("add ", "put ", "schedule", "create ", "book ", "set ")
+_CAL_NOUNS = ("calendar", "appointment", "event", "reminder", "meeting")
 EVENT_ADD_TRIGGERS = [
     "remind me", "add an event", "appointment", "have plans", "dinner plans",
     "i've got plans", "ive got plans", "i have a meeting", "i have a party",
@@ -195,8 +197,8 @@ def classify(text: str) -> str:
         return "plan"
     if any(k in t for k in CALENDAR_EDIT_TRIGGERS):
         return "calendar_edit"               # delete / rename an event
-    if "calendar" in t and any(v in t for v in _CAL_ADD_VERBS):
-        return "calendar_add"                # "put/add/schedule ... calendar" -> write
+    if any(v in t for v in _CAL_ADD_VERBS) and any(w in t for w in _CAL_NOUNS):
+        return "calendar_add"                # "add/schedule an appointment/event ..." -> write
     if any(k in t for k in PLAN_QUERY_TRIGGERS):
         return "plan_query"
     if any(k in t for k in PLAN_SET_TRIGGERS):
